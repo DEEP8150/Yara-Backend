@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import errorHandler from './middlewares/errorHandler.js'
 import userRoutes from './routes/user.route.js'
-import { login } from './controllers/user.controller.js'
+
 
 const app = express()
 
@@ -19,10 +19,9 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }))
 app.use(express.static("public"))
 app.use(cookieParser())
 
-// ROUTES
+
 app.use("/api/v1/users", userRoutes);
 
-// ERROR HANDLER (always last)
 app.use(errorHandler)
 
 export { app }
