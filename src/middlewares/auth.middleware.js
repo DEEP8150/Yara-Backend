@@ -28,12 +28,20 @@ const verifyJWT = async (req , res , next) => {
     }
 } 
 
-const isAdmin = (req, res, next) => {
-    if (req.user.role !== "admin") {
-        return res.status(403).json({ message: "Access denied. Admin only." });
-    }
-    next();
+
+const authorizeRoles = (...roles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({ message: "Access denied. Not allowed for this role." });
+        }
+
+        next();  
+    };
 };
 
 
-export {verifyJWT , isAdmin}
+export {verifyJWT  ,authorizeRoles}

@@ -8,7 +8,7 @@ export const transporter = nodemailer.createTransport({
   }
 })
 
-export const sendWelcomeEmailToCustomer = async (to, organization) => {
+export const sendWelcomeEmailToCustomer = async (to, organization,password) => {
   try {
     const mailOptions = {
       from: `"Yara" <${process.env.EMAIL_USER}>`,
@@ -18,6 +18,7 @@ export const sendWelcomeEmailToCustomer = async (to, organization) => {
         <h2>Welcome, ${organization}</h2>
         <p>You have been successfully onboarded to <b>Yara</b>.</p>
         <p>We are glad to have you with us.</p>
+        <p><b>Password:</b> ${password}</p>
       `,
     };
 
@@ -29,7 +30,7 @@ export const sendWelcomeEmailToCustomer = async (to, organization) => {
   }
 };
 
-export const sendWelcomeEmailToEngineer = async (to, firstName, lastName) => {
+export const sendWelcomeEmailToEngineer = async (to, firstName, lastName,password) => {
   try {
     const mailOptions = {
       from: `"Yara" <${process.env.EMAIL_USER}>`,
@@ -39,6 +40,7 @@ export const sendWelcomeEmailToEngineer = async (to, firstName, lastName) => {
         <h2>Welcome, ${firstName} ${lastName}</h2>
         <p>You have been successfully onboarded to <b>Yara</b>.</p>
         <p>We are glad to have you with us.</p>
+        <p><b>Password:</b> ${password}</p>
       `,
     };
 
