@@ -167,6 +167,7 @@ const registerCustomerAndEngineer = async (req, res, next) => {
 const login = async (req, res, next) => {
 
     try {
+        console.log("user details", req.body)
         const { email, password } = req.body
 
         console.log("user details", email, password)
@@ -1136,6 +1137,31 @@ const fileUpload = async (req, res) => {
     }
 };
 
+//for unity:
+
+const getAllPurchases = async (req, res) => {
+    try {
+        const purchases = await Purchase.find()
+            .populate("user", "organization email ")
+            .populate("product", "productName")
+        // .populate("purchase", "projectNumber");
+
+        return res.json({
+            success: true,
+            count: purchases.length,
+            purchases
+        });
+
+    } catch (error) {
+        console.error("Get Purchases Error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch purchases",
+        });
+    }
+};
+
+
 export {
     generateAccessAndRefreshToken,
     registerCustomerAndEngineer,
@@ -1164,5 +1190,6 @@ export {
     getUpdatedProduct,
     updateEngineer,
     getEngineerById,
-    fileUpload
+    fileUpload,
+    getAllPurchases
 }

@@ -9,7 +9,8 @@ import {
     getCustomerById,
     getUpdatedProduct,
     getEngineerById,
-    updateEngineer
+    updateEngineer,
+    getAllPurchases
 } from "../controllers/user.controller.js";
 
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
@@ -45,6 +46,7 @@ userRouter.route("/forgot-password").post(forgotPassword)
 userRouter.route("/reset-password/:token").post(resetNewPassword)
 userRouter.route("/products/:id").get(verifyJWT, getUpdatedProduct)
 
-
+//for unity:
+userRouter.route("/unityAll-purchases").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllPurchases)
 
 export default userRouter
