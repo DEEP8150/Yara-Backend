@@ -1153,8 +1153,7 @@ const getAllPurchases = async (req, res) => {
     try {
         const purchases = await Purchase.find()
             .populate("user", "organization email ")
-            .populate("product", "productName")
-        // .populate("purchase", "projectNumber");
+            .populate("product", "productName childrenProducts")
 
         return res.json({
             success: true,
