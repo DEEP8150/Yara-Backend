@@ -242,40 +242,87 @@ const logout = async (req, res) => {
     }
 };
 
-const refreshAccessToken = async (req, res, next) => {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
-
-    if (!incomingRefreshToken) {
-        return res.status(400).json({ message: "Unauthorized Token" })
-    }
+const forgotPassword = async (req, res) => {
     try {
-        const decodeToken = await verifyJWT(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
-        const user = await User.findById(decodeToken?._id)
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json(new ApiError(400, "Email is required"));
+        }
+
+        const user = await User.findOne({ email });
 
         if (!user) {
-            throw new ApiError(401, "Invalid refresh token")
+            return res.status(404).json({ message: "User not found" });
         }
 
-        if (incomingRefreshToken !== user?.refreshToken) {
-            throw new ApiError(401, "Refresh Token is expired or used")
-        }
+        const resetToken = user.generatePasswordResetToken();
 
-        const options = {
-            httpOnly: true,
-            // secure: true
-        }
+        await user.save({ validateBeforeSave: false });
 
-        const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id)
+        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-        return res
-            .status(200)
-            .cookie("accessToken", accessToken, options)
-            .cookie("refreshToken", newRefreshToken, options)
-            .json(new ApiResponse(200, accessToken, refreshAccessToken), "Access Token Refreshed")
+        await sendResetPasswordEmail(user.email, resetUrl);
+
+        return res.status(200).json({
+            message: "Reset password link sent to your email",
+            resetToken,
+            resetUrl
+        });
+
     } catch (error) {
-        throw new ApiError(400, error.message || "Invalid Token")
+        console.error("Forgot Password Error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
+
+
+const resetNewPassword = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const { password, confirmPassword } = req.body;
+
+        if (!password || !confirmPassword) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        if (password !== confirmPassword) {
+            return res.status(400).json({ message: "Passwords do not match" });
+        }
+
+        const hashedToken = crypto
+            .createHash("sha256")
+            .update(token)
+            .digest("hex");
+
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpiry: { $gt: Date.now() },
+        });
+
+        console.log("reset user", user);
+
+        if (!user) {
+            return res.status(400).json({ message: "Invalid or expired token" });
+        }
+
+        user.password = password;
+
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpiry = undefined;
+
+        await user.save();
+
+        return res.status(200).json({
+            message: "Password reset successful",
+        });
+
+    } catch (error) {
+        console.error("Reset Password Error:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
 
 const changeCurrentPassword = async (req, res, next) => {
     try {
@@ -329,7 +376,42 @@ const changeCurrentPassword = async (req, res, next) => {
             .status(500)
             .json(new ApiError(500, "Internal Server Error", [error.message]));
     }
-};
+}
+
+const refreshAccessToken = async (req, res, next) => {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+
+    if (!incomingRefreshToken) {
+        return res.status(400).json({ message: "Unauthorized Token" })
+    }
+    try {
+        const decodeToken = await verifyJWT(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+        const user = await User.findById(decodeToken?._id)
+
+        if (!user) {
+            throw new ApiError(401, "Invalid refresh token")
+        }
+
+        if (incomingRefreshToken !== user?.refreshToken) {
+            throw new ApiError(401, "Refresh Token is expired or used")
+        }
+
+        const options = {
+            httpOnly: true,
+            // secure: true
+        }
+
+        const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id)
+
+        return res
+            .status(200)
+            .cookie("accessToken", accessToken, options)
+            .cookie("refreshToken", newRefreshToken, options)
+            .json(new ApiResponse(200, accessToken, refreshAccessToken), "Access Token Refreshed")
+    } catch (error) {
+        throw new ApiError(400, error.message || "Invalid Token")
+    }
+}
 
 const addNewProduct = async (req, res, next) => {
     try {
@@ -857,78 +939,6 @@ const ticketDetailsSendToParties = async (req, res) => {
     }
 };
 
-const forgotPassword = async (req, res) => {
-    try {
-        const { email } = req.body;
-
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        const resetToken = crypto.randomBytes(32).toString("hex");
-
-        const hashedToken = crypto
-            .createHash("sha256")
-            .update(resetToken)
-            .digest("hex");
-
-        user.resetPasswordToken = hashedToken;
-        user.resetPasswordExpiry = Date.now() + 10 * 60 * 1000;
-
-        await user.save({ validateBeforeSave: false });
-
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-
-        await sendResetPasswordEmail(user.email, resetUrl);
-
-        return res.status(200).json({
-            message: "Reset password link sent to your email",
-            resetToken,
-            resetUrl
-        });
-
-    } catch (error) {
-        console.error("Forgot Password Error:", error);
-        return res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-
-const resetNewPassword = async (req, res) => {
-    try {
-        const { token } = req.params;
-        const { newPassword } = req.body;
-
-        const hashedToken = crypto
-            .createHash("sha256")
-            .update(token)
-            .digest("hex");
-
-        const user = await User.findOne({
-            resetPasswordToken: hashedToken,
-            resetPasswordExpiry: { $gt: Date.now() }
-        });
-        console.log("reset user", user)
-
-        if (!user) {
-            return res.status(400).json({ message: "Invalid or expired token" });
-        }
-
-        user.password = newPassword;
-
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpiry = undefined;
-
-        await user.save();
-
-        return res.status(200).json({ message: "Password reset successful" });
-
-    } catch (error) {
-        console.error("Reset Password Error:", error);
-        return res.status(500).json({ message: "Internal Server Error" });
-    }
-};
 
 const getCustomerDetails = async (req, res) => {
     try {
@@ -1160,6 +1170,7 @@ const getAllPurchases = async (req, res) => {
         });
     }
 };
+
 
 
 export {

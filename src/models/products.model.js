@@ -10,6 +10,19 @@ const productSchema = new mongoose.Schema(
         productDetails: {
             type: String,
 
+        },
+
+        childrenProducts: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Product",
+            },
+        ],
+
+
+        isVisibleInMobile: {
+            type: Boolean,
+            default: false
         }
     }, { timestamps: true })
 
