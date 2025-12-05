@@ -25,8 +25,50 @@ const purchaseSchema = new mongoose.Schema(
         productSerialNumber: {
             type: String,
             trim: true
-        }
+        },
+        preDocs: {
+            type: [
+                {
+                    title: String,
+                    url: String,
+                    isFilled: { type: Boolean, default: false },
+                    s3PdfUrl: { type: String, default: null }
+                }
+            ],
+            default: [
+                {
+                    title: "Cold Commissioning Activity list Protocol",
+                    url: "http://localhost:5173/CommissioningProtocol",
+                    isFilled: false,
+                    s3PdfUrl: null
+                },
+                {
+                    title: "Annexure 6.3.2.PSA13_Ready to Start Protocol",
+                    url: "http://localhost:5173/hot-commissioning",
+                    isFilled: false,
+                    s3PdfUrl: null
+                }
+            ]
+        },
 
+        postDocs: {
+            type: [
+                {
+                    title: String,
+                    url: String,
+                    isFilled: { type: Boolean, default: false },
+                    s3PdfUrl: { type: String, default: null }
+                }
+            ],
+            default: [
+                {
+                    title: "Behavioural observation​",
+                    url: "http://localhost:5173/behavioural-observation",
+                    isFilled: false,
+                    s3PdfUrl: null
+                }
+            ]
+        }
     }, { timestamps: true })
 
 export const Purchase = mongoose.model("Purchase", purchaseSchema)

@@ -8,6 +8,7 @@ import { Ticket } from "../models/Tickets.model.js";
 import { sendOtpEmail, sendPasswordResetSuccessEmail, sendResetPasswordEmail, sendTicketEmailsToParties, sendWelcomeEmailToCustomer, sendWelcomeEmailToEngineer } from "../utils/mailer.js";
 import crypto from "crypto";
 import bcrypt from 'bcrypt'
+import { TempFormToken } from "../models/TempFormToken.model.js";
 
 
 const generateRandomPassword = (length = 10) => {
@@ -1153,23 +1154,294 @@ const getAllPurchases = async (req, res) => {
     try {
         const purchases = await Purchase.find()
             .populate("user", "organization email ")
-            .populate("product", "productName childrenProducts")
+            .populate({
+                path: "product",
+                select: "productName childrenProducts",
+                populate: {
+                    path: "childrenProducts",
+                    select: "productName productDetails"
+                }
+            });
 
-        return res.json({
-            success: true,
-            count: purchases.length,
-            purchases
-        });
 
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    "Purchases fetched successfully",
+                    {
+                        count: purchases.length,
+                        purchases
+                    }
+                )
+            );
     } catch (error) {
-        console.error("Get Purchases Error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Failed to fetch purchases",
-        });
+        return next(
+            new ApiError(
+                500,
+                "Internal Server Error",
+                [error.message],
+                error.stack
+            )
+        );
     }
 };
 
+const getAllProjectDocs = async (req, res) => {
+    try {
+        const { projectNumber } = req.params;
+
+        const purchase = await Purchase.findOne({ projectNumber });
+
+        if (!purchase) {
+            return next(
+                new ApiError(
+                    404,
+                    "Project number not found",
+                    [`Project ${projectNumber} does not exist`]
+                )
+            );
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    "Project docs fetched",
+                    {
+                        projectNumber: purchase.projectNumber,
+                        preDocs: purchase.preDocs,
+                        postDocs: purchase.postDocs
+                    }
+                )
+            );
+
+    } catch (error) {
+        console.log("Error in getProjectDocs:", error);
+        return next(
+            new ApiError(
+                500,
+                "Internal Server Error",
+                [error.message],
+                error.stack
+            )
+        );
+    }
+};
+
+const getPreDocs = async (req, res) => {
+    try {
+        const { projectNumber } = req.params;
+
+        const purchase = await Purchase.findOne({ projectNumber });
+
+        if (!purchase) {
+            return next(
+                new ApiError(
+                    404,
+                    "Project number not found",
+                    [`Project ${projectNumber} does not exist`]
+                )
+            );
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    "Pre documentation fetched successfully",
+                    {
+                        projectNumber: purchase.projectNumber,
+                        preDocs: purchase.preDocs
+                    }
+                )
+            );
+
+    } catch (error) {
+        return next(
+            new ApiError(
+                500,
+                "Internal Server Error",
+                [error.message],
+                error.stack
+            )
+        );
+    }
+};
+
+const getPostDocs = async (req, res) => {
+    try {
+        const { projectNumber } = req.params;
+
+        const purchase = await Purchase.findOne({ projectNumber });
+
+        if (!purchase) {
+            return next(
+                new ApiError(
+                    404,
+                    "Project number not found",
+                    [`Project ${projectNumber} does not exist`]
+                )
+            );
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    "Post documentation fetched successfully",
+                    {
+                        projectNumber: purchase.projectNumber,
+                        postDocs: purchase.postDocs
+                    }
+                )
+            );
+
+    } catch (error) {
+        console.log("Error in getPostDocs:", error);
+        return next(
+            new ApiError(
+                500,
+                "Internal Server Error",
+                [error.message],
+                error.stack
+            )
+        );
+    }
+};
+
+
+//update pre and post doc status is no use .
+// const updatePreDocStatus = async (req, res) => {
+//     try {
+//         const { projectNumber, index } = req.params;
+//         const { s3PdfUrl } = req.body;
+
+//         const purchase = await Purchase.findOne({ projectNumber });
+//         if (!purchase) {
+//             return res.status(404).json({ success: false, message: "Purchase not found" });
+//         }
+
+//         if (!purchase.preDocs[index]) {
+//             return res.status(400).json({ success: false, message: "Invalid pre-doc index" });
+//         }
+
+//         purchase.preDocs[index].isFilled = true;
+//         purchase.preDocs[index].s3PdfUrl = s3PdfUrl;
+
+//         await purchase.save();
+
+//         res.json({
+//             success: true,
+//             message: "Pre-documentation updated successfully",
+//             preDocs: purchase.preDocs
+//         });
+
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// };
+
+// const updatePostDocStatus = async (req, res) => {
+//     try {
+//         const { projectNumber, index } = req.params;
+//         const { s3PdfUrl } = req.body;
+
+//         const purchase = await Purchase.findOne({ projectNumber });
+//         if (!purchase) {
+//             return res.status(404).json({ success: false, message: "Purchase not found" });
+//         }
+
+//         if (!purchase.postDocs[index]) {
+//             return res.status(400).json({ success: false, message: "Invalid post-doc index" });
+//         }
+
+//         purchase.postDocs[index].isFilled = true;
+//         purchase.postDocs[index].s3PdfUrl = s3PdfUrl;
+
+//         await purchase.save();
+
+//         res.json({
+//             success: true,
+//             message: "Post-documentation updated successfully",
+//             postDocs: purchase.postDocs
+//         });
+
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ success: false, error: error.message });
+//     }
+// };
+
+const generateFormUrl = async (req, res) => {
+    try {
+        const { projectNumber, formName } = req.body;
+        const userId = req.user._id;
+
+        const tempToken = jwt.sign(
+            { userId, projectNumber, formName },
+            process.env.TEMP_TOKEN_SECRET,
+            { expiresIn: "5m" }
+        );
+
+        await TempFormToken.create({
+            token: tempToken,
+            userId,
+            projectNumber,
+            formName,
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+        });
+
+        const formRoutes = {
+            "cold-commissioning": "cold-commissioning",
+            "hot-commissioning": "hot-commissioning",
+            "behaviour-observation": "behaviour-observation",
+            "safety-checklist": "safety-checklist",
+            "equipment-checklist": "equipment-checklist",
+            "general-feedback": "general-feedback"
+        };
+
+        const route = formRoutes[formName];
+
+        if (!route) {
+            return res.status(400).json({ message: "Invalid formName" });
+        }
+
+        const url = `http://localhost:5173//${route}?token=${tempToken}`;
+
+        return res.json({ url });
+
+    } catch (err) {
+        return res.status(500).json({ message: "Error generating URL", err });
+    }
+};
+
+
+
+// export const verifyFormToken = (req, res) => {
+//     try {
+//         const authHeader = req.headers.authorization;
+//         if (!authHeader)
+//             return res.status(401).json({ message: "Unauthorized" });
+
+//         const token = authHeader.split(" ")[1];
+//         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+//         res.json({
+//             success: true,
+//             userId: decoded.userId,
+//             projectNumber: decoded.projectNumber,
+//             formName: decoded.formName
+//         });
+//     } catch (err) {
+//         return res.status(401).json({ message: "Token expired or invalid" });
+//     }
+// };
 
 
 export {
@@ -1201,5 +1473,9 @@ export {
     updateEngineer,
     getEngineerById,
     fileUpload,
-    getAllPurchases
+    getAllPurchases,
+    getAllProjectDocs,
+    getPreDocs,
+    getPostDocs,
+    generateFormUrl
 }

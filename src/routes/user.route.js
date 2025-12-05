@@ -10,7 +10,10 @@ import {
     getUpdatedProduct,
     getEngineerById,
     updateEngineer,
-    getAllPurchases
+    getAllPurchases,
+    getAllProjectDocs,
+    getPreDocs,
+    getPostDocs
 } from "../controllers/user.controller.js";
 
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
@@ -48,5 +51,10 @@ userRouter.route("/products/:id").get(verifyJWT, getUpdatedProduct)
 
 //for unity:
 userRouter.route("/unityAll-purchases").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllPurchases)
+userRouter.route("/docs/:projectNumber").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllProjectDocs)
+userRouter.route("/purchase/:projectNumber/pre-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPreDocs)
+userRouter.route("/purchase/:projectNumber/post-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPostDocs)
+
+// userRouter.route("/pre-documentUpdate/:projectNumber/:index").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), updatePreDocStatus)
 
 export default userRouter
