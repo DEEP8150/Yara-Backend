@@ -38,7 +38,7 @@ const purchaseSchema = new mongoose.Schema(
             default: [
                 {
                     title: "Cold Commissioning Activity list Protocol",
-                    url: "http://localhost:5173/CommissioningProtocol",
+                    url: "http://localhost:5173/cold-commissioningl",
                     isFilled: false,
                     s3PdfUrl: null
                 },

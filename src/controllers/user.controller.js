@@ -9,6 +9,7 @@ import { sendOtpEmail, sendPasswordResetSuccessEmail, sendResetPasswordEmail, se
 import crypto from "crypto";
 import bcrypt from 'bcrypt'
 import { TempFormToken } from "../models/TempFormToken.model.js";
+import jwt from "jsonwebtoken";
 
 
 const generateRandomPassword = (length = 10) => {
@@ -1383,6 +1384,7 @@ const generateFormUrl = async (req, res) => {
         const { projectNumber, formName } = req.body;
         const userId = req.user._id;
 
+
         const tempToken = jwt.sign(
             { userId, projectNumber, formName },
             process.env.TEMP_TOKEN_SECRET,
@@ -1394,7 +1396,7 @@ const generateFormUrl = async (req, res) => {
             userId,
             projectNumber,
             formName,
-            expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         });
 
         const formRoutes = {
@@ -1412,12 +1414,16 @@ const generateFormUrl = async (req, res) => {
             return res.status(400).json({ message: "Invalid formName" });
         }
 
-        const url = `http://localhost:5173//${route}?token=${tempToken}`;
+        const url = `http://localhost:9000/api/v1/users/${route}?token=${tempToken}`;
 
         return res.json({ url });
 
     } catch (err) {
-        return res.status(500).json({ message: "Error generating URL", err });
+        console.error("Generate Form URL Error:", err);
+        return res.status(500).json({
+            message: "Error generating URL",
+            error: err.message
+        });
     }
 };
 

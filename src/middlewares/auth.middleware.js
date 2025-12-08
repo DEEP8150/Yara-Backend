@@ -1,32 +1,33 @@
 import jwt from 'jsonwebtoken'
 import { User } from '../models/user.model.js';
 
-const verifyJWT = async (req , res , next) => {
+const verifyJWT = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
 
         const token = req.cookies?.accessToken || (authHeader && authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null)
 
-        if (!token){
-            return res.status(401).json({message:"No token provided"})
+        if (!token) {
+            return res.status(401).json({ message: "No token provided" })
         }
 
-        const decodeToken = jwt.verify(token,process.env.ACCESS_TOKEN_SECRET);
+        const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
         const user = await User.findById(decodeToken?._id).select("-password -refreshToken");
+        console.log("req.user", user)
 
         if (!user) {
-            return res.status(401).json({message:"user not found"})
+            return res.status(401).json({ message: "user not found" })
         }
 
-        console.log("req.user",user)
+        console.log("req.user", user)
         req.user = user
         next();
 
     } catch (error) {
-        res.status(401).json({message: "Unauthorized",error})
+        res.status(401).json({ message: "Unauthorized", error })
     }
-} 
+}
 
 
 const authorizeRoles = (...roles) => {
@@ -39,9 +40,9 @@ const authorizeRoles = (...roles) => {
             return res.status(403).json({ message: "Access denied. Not allowed for this role." });
         }
 
-        next();  
+        next();
     };
 };
 
 
-export {verifyJWT  ,authorizeRoles}
+export { verifyJWT, authorizeRoles }

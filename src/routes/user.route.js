@@ -13,10 +13,12 @@ import {
     getAllPurchases,
     getAllProjectDocs,
     getPreDocs,
-    getPostDocs
+    getPostDocs,
+    generateFormUrl
 } from "../controllers/user.controller.js";
 
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
+import { validateTempToken } from "../middlewares/TempFormToken.middleware.js";
 
 const userRouter = Router()
 
@@ -54,6 +56,9 @@ userRouter.route("/unityAll-purchases").get(verifyJWT, authorizeRoles("admin", "
 userRouter.route("/docs/:projectNumber").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllProjectDocs)
 userRouter.route("/purchase/:projectNumber/pre-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPreDocs)
 userRouter.route("/purchase/:projectNumber/post-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPostDocs)
+
+userRouter.route("/generate-url").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), generateFormUrl)
+userRouter.route("/validate-temp-token").get(validateTempToken)
 
 // userRouter.route("/pre-documentUpdate/:projectNumber/:index").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), updatePreDocStatus)
 
