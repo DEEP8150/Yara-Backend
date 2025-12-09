@@ -52,12 +52,12 @@ userRouter.route("/reset-password/:token").post(resetNewPassword)
 userRouter.route("/products/:id").get(verifyJWT, getUpdatedProduct)
 
 //for unity:
-userRouter.route("/unityAll-purchases").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllPurchases)
-userRouter.route("/docs/:projectNumber").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllProjectDocs)
-userRouter.route("/purchase/:projectNumber/pre-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPreDocs)
-userRouter.route("/purchase/:projectNumber/post-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPostDocs)
+userRouter.route("/unityAll-purchases").get(verifyJWT, getAllPurchases)
+userRouter.route("/docs/:projectNumber").get(verifyJWT, getAllProjectDocs)
+userRouter.route("/purchase/:projectNumber/pre-docs").get(verifyJWT, getPreDocs)
+userRouter.route("/purchase/:projectNumber/post-docs").get(verifyJWT, getPostDocs)
 
-userRouter.route("/generate-url").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), generateFormUrl)
+userRouter.route("/generate-url").post(verifyJWT, generateFormUrl)
 userRouter.route("/validate-temp-token").get(validateTempToken)
 
 // userRouter.route("/pre-documentUpdate/:projectNumber/:index").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), updatePreDocStatus)
