@@ -887,22 +887,31 @@ const ticketDetailsSendToParties = async (req, res) => {
 
         console.log("optionEmail , comment , synergyNumber", optionalEmail, comment, synergyNumber)
 
+        const ticket = await Ticket.findById(ticketId);
+        if (!ticket) {
+            return res.status(404).json({ message: "Ticket not found" });
+        }
+
+        if (ticket.emailSent) {
+            return res.status(400).json({
+                message: "Email already sent for this ticket. No further updates allowed."
+            });
+        }
+
         if (!comment) {
             return res.status(400).json({
                 message: "Comment is required",
             });
         }
 
-        const ticket = await Ticket.findById(ticketId);
-        if (!ticket) {
-            return res.status(404).json({ message: "Ticket not found" });
-        }
 
         ticket.comment = comment;
         if (optionalEmail) ticket.optionalEmail = optionalEmail;
         if (synergyNumber) ticket.synergyNumber = synergyNumber;
 
         ticket.status = "Resolved";
+
+        ticket.emailSent = true;
 
         await ticket.save();
 

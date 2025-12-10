@@ -54,6 +54,10 @@ const ticketSchema = new mongoose.Schema(
         synergyNumber: {
             type: String,
             default: null,
+        },
+        emailSent: {
+            type: Boolean,
+            default: false
         }
     }, { timestamps: true })
 
