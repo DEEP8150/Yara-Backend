@@ -55,7 +55,7 @@ userRouter.route("/reset-password/:token").post(resetNewPassword)
 userRouter.route("/app-reset-password/:token").post(resetNewPassword)
 userRouter.route("/products/:id").get(verifyJWT, getUpdatedProduct)
 userRouter.route("/upload-signature").post(verifyJWT, uploadSignature)
-userRouter.route("/signature-signed-url").get(verifyJWT, getSignedImageUrl)
+userRouter.route("/signature-signed-url").get(getSignedImageUrl)
 //for unity:
 userRouter.route("/unityAll-purchases").get(verifyJWT, getAllPurchases)
 userRouter.route("/docs/:projectNumber").get(verifyJWT, getAllProjectDocs)

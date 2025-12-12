@@ -834,8 +834,6 @@ const getTickets = async (req, res) => {
     }
 };
 
-
-
 const getTicketById = async (req, res) => {
     try {
         const { ticketId } = req.params;
@@ -1570,11 +1568,22 @@ const getPostDocs = async (req, res) => {
 const generateFormUrl = async (req, res) => {
     try {
         const { projectNumber, formName } = req.body;
-        const userId = req.user._id;
+        const { _id: userId, firstName, lastName, signatureUrl } = req.user;
 
+        const purchase = await Purchase.findOne({ projectNumber }).populate("user")
+
+        if (!purchase) {
+            return res.status(404).json({ message: "No customer found for this project number", });
+        }
+
+        const customer = purchase.user;
+
+        const EngineerDetails = `${firstName} ${lastName}`;
+        const customerOrg = customer.organization
+        const EngineerSignature = `${signatureUrl}`;
 
         const tempToken = jwt.sign(
-            { userId, projectNumber, formName },
+            { userId, projectNumber, formName, EngineerDetails, customerOrg, EngineerSignature },
             process.env.TEMP_TOKEN_SECRET,
             { expiresIn: "5m" }
         );
@@ -1602,7 +1611,7 @@ const generateFormUrl = async (req, res) => {
             return res.status(400).json({ message: "Invalid formName" });
         }
 
-        const url = `http://localhost:9000/api/v1/users/${route}?token=${tempToken}`;
+        const url = `http://192.168.1.223:5173/${route}?token=${tempToken}`;
 
         return res.json({ url });
 

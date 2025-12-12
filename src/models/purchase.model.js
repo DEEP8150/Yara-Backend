@@ -38,13 +38,13 @@ const purchaseSchema = new mongoose.Schema(
             default: [
                 {
                     title: "Cold Commissioning Activity list Protocol",
-                    url: "http://localhost:5173/cold-commissioningl",
+                    url: "http://192.168.1.223:5173/cold-commissioning",
                     isFilled: false,
                     s3PdfUrl: null
                 },
                 {
                     title: "Annexure 6.3.2.PSA13_Ready to Start Protocol",
-                    url: "http://localhost:5173/hot-commissioning",
+                    url: "http://192.168.1.223:5173/hot-commissioning",
                     isFilled: false,
                     s3PdfUrl: null
                 }
@@ -63,7 +63,7 @@ const purchaseSchema = new mongoose.Schema(
             default: [
                 {
                     title: "Behavioural observation​",
-                    url: "http://localhost:5173/behavioural-observation",
+                    url: "http://192.168.1.223:5173/behavioural-observation",
                     isFilled: false,
                     s3PdfUrl: null
                 }

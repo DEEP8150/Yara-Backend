@@ -4,6 +4,8 @@
 
 import { TempFormToken } from "../models/TempFormToken.model.js"
 import jwt from "jsonwebtoken";
+import { getObjectUrl } from "../utils/S3Client.js";
+
 
 // export const verifyReactTempToken = async (req, res, next) => {
 //     try {
@@ -61,7 +63,10 @@ export const validateTempToken = async (req, res) => {
             valid: true,
             userId: decoded.userId,
             projectNumber: decoded.projectNumber,
-            formName: decoded.formName
+            formName: decoded.formName,
+            customerOrg: decoded.customerOrg,
+            engineerDetails: decoded.engineerDetails,
+            EngineerSignature: await getObjectUrl(decoded.EngineerSignature)//decoded.EngineerSignature,
         });
     } catch (err) {
         return res.status(401).json({ message: "Unauthorized", error: err.message });
