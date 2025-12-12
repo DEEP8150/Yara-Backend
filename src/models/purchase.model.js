@@ -66,6 +66,12 @@ const purchaseSchema = new mongoose.Schema(
                     url: "http://192.168.1.223:5173/behavioural-observation",
                     isFilled: false,
                     s3PdfUrl: null
+                },
+                {
+                    title: "Feedback Form",
+                    url: "http://192.168.1.223:5173/feedback-form",
+                    isFilled: false,
+                    s3PdfUrl: null
                 }
             ]
         }

@@ -1438,7 +1438,7 @@ const getAllPurchases = async (req, res, next) => {
 };
 
 
-const getAllProjectDocs = async (req, res) => {
+const getAllProjectDocs = async (req, res, next) => {
     try {
         const { projectNumber } = req.params;
 
@@ -1481,7 +1481,7 @@ const getAllProjectDocs = async (req, res) => {
     }
 };
 
-const getPreDocs = async (req, res) => {
+const getPreDocs = async (req, res, next) => {
     try {
         const { projectNumber } = req.params;
 
@@ -1522,7 +1522,7 @@ const getPreDocs = async (req, res) => {
     }
 };
 
-const getPostDocs = async (req, res) => {
+const getPostDocs = async (req, res, next) => {
     try {
         const { projectNumber } = req.params;
 
@@ -1585,7 +1585,7 @@ const generateFormUrl = async (req, res) => {
         const tempToken = jwt.sign(
             { userId, projectNumber, formName, EngineerDetails, customerOrg, EngineerSignature },
             process.env.TEMP_TOKEN_SECRET,
-            { expiresIn: "5m" }
+            { expiresIn: "10m" }
         );
 
         await TempFormToken.create({
@@ -1599,10 +1599,11 @@ const generateFormUrl = async (req, res) => {
         const formRoutes = {
             "cold-commissioning": "cold-commissioning",
             "hot-commissioning": "hot-commissioning",
-            "behaviour-observation": "behaviour-observation",
+            "behavioural-observation": "behavioural-observation",
             "safety-checklist": "safety-checklist",
             "equipment-checklist": "equipment-checklist",
-            "general-feedback": "general-feedback"
+            "general-feedback": "general-feedback",
+            "feedback-form": "feedback-form"
         };
 
         const route = formRoutes[formName];
