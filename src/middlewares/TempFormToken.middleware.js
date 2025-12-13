@@ -65,8 +65,9 @@ export const validateTempToken = async (req, res) => {
             projectNumber: decoded.projectNumber,
             formName: decoded.formName,
             customerOrg: decoded.customerOrg,
+            customerAddress: decoded.customerAddress,
             engineerDetails: decoded.engineerDetails,
-            EngineerSignature: await getObjectUrl(decoded.EngineerSignature)//decoded.EngineerSignature,
+            EngineerSignature: await getObjectUrl(decoded.EngineerSignature)
         });
     } catch (err) {
         return res.status(401).json({ message: "Unauthorized", error: err.message });

@@ -1564,6 +1564,47 @@ const getPostDocs = async (req, res, next) => {
     }
 };
 
+const getFeedbackForm = async (req, res, next) => {
+    try {
+        const { projectNumber } = req.params;
+
+        const purchase = await Purchase.findOne({ projectNumber });
+
+        if (!purchase) {
+            return next(
+                new ApiError(
+                    404,
+                    "Project number not found",
+                    [`Project ${projectNumber} does not exist`]
+                )
+            );
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    "Feedback form fetched successfully",
+                    {
+                        projectNumber: purchase.projectNumber,
+                        feedbackForm: purchase.feedbackForm
+                    }
+                )
+            );
+
+    } catch (error) {
+        console.log("Error in getFeedbackForm:", error);
+        return next(
+            new ApiError(
+                500,
+                "Internal Server Error",
+                [error.message],
+                error.stack
+            )
+        );
+    }
+};
 
 const generateFormUrl = async (req, res) => {
     try {
@@ -1580,12 +1621,17 @@ const generateFormUrl = async (req, res) => {
 
         const EngineerDetails = `${firstName} ${lastName}`;
         const customerOrg = customer.organization
+        const customerAddress = {
+            address1: customer.address_1 || "",
+            address2: customer.address_2 || ""
+        };
+
         const EngineerSignature = `${signatureUrl}`;
 
         const tempToken = jwt.sign(
-            { userId, projectNumber, formName, EngineerDetails, customerOrg, EngineerSignature },
+            { userId, projectNumber, formName, EngineerDetails, customerOrg, customerAddress, EngineerSignature },
             process.env.TEMP_TOKEN_SECRET,
-            { expiresIn: "10m" }
+            { expiresIn: "1h" }
         );
 
         await TempFormToken.create({
@@ -1690,8 +1736,6 @@ const generateFormUrl = async (req, res) => {
 // };
 
 
-
-
 // export const verifyFormToken = (req, res) => {
 //     try {
 //         const authHeader = req.headers.authorization;
@@ -1748,5 +1792,6 @@ export {
     getPostDocs,
     generateFormUrl,
     getSignedImageUrl,
-    uploadSignature
+    uploadSignature,
+    getFeedbackForm
 }

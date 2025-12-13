@@ -32,14 +32,19 @@ const purchaseSchema = new mongoose.Schema(
                     title: String,
                     url: String,
                     isFilled: { type: Boolean, default: false },
-                    s3PdfUrl: { type: String, default: null }
+                    s3PdfUrl: { type: String, default: null },
+                    filledByEngineer: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "User",
+                        default: null
+                    }
                 }
             ],
             default: [
                 {
                     title: "Cold Commissioning Activity list Protocol",
                     url: "http://192.168.1.223:5173/cold-commissioning",
-                    isFilled: false,
+                    isFilled: true,
                     s3PdfUrl: null
                 },
                 {
@@ -57,7 +62,12 @@ const purchaseSchema = new mongoose.Schema(
                     title: String,
                     url: String,
                     isFilled: { type: Boolean, default: false },
-                    s3PdfUrl: { type: String, default: null }
+                    s3PdfUrl: { type: String, default: null },
+                    filledByEngineer: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "User",
+                        default: null
+                    }
                 }
             ],
             default: [
@@ -67,6 +77,23 @@ const purchaseSchema = new mongoose.Schema(
                     isFilled: false,
                     s3PdfUrl: null
                 },
+            ]
+        },
+        feedbackForm: {
+            type: [
+                {
+                    title: String,
+                    url: String,
+                    isFilled: { type: Boolean, default: false },
+                    s3PdfUrl: { type: String, default: null },
+                    filledByUser: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "User",
+                        default: null
+                    }
+                }
+            ],
+            default: [
                 {
                     title: "Feedback Form",
                     url: "http://192.168.1.223:5173/feedback-form",
