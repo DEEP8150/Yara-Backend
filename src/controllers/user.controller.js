@@ -5,7 +5,7 @@ import { User } from "../models/user.model.js"
 import { ApiError } from "../utils/ApiErrors.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { Ticket } from "../models/Tickets.model.js";
-import { sendOtpEmail, sendPasswordResetSuccessEmail, sendResetPasswordEmail, sendTicketEmailsToParties, sendTicketRaisedEmail, sendWelcomeEmailToCustomer, sendWelcomeEmailToEngineer } from "../utils/mailer.js";
+import { sendFeedbackEmail, sendOtpEmail, sendPasswordResetSuccessEmail, sendResetPasswordEmail, sendTicketEmailsToParties, sendTicketRaisedEmail, sendWelcomeEmailToCustomer, sendWelcomeEmailToEngineer } from "../utils/mailer.js";
 import crypto from "crypto";
 import bcrypt from 'bcrypt'
 import { TempFormToken } from "../models/TempFormToken.model.js";
@@ -1564,47 +1564,7 @@ const getPostDocs = async (req, res, next) => {
     }
 };
 
-const getFeedbackForm = async (req, res, next) => {
-    try {
-        const { projectNumber } = req.params;
 
-        const purchase = await Purchase.findOne({ projectNumber });
-
-        if (!purchase) {
-            return next(
-                new ApiError(
-                    404,
-                    "Project number not found",
-                    [`Project ${projectNumber} does not exist`]
-                )
-            );
-        }
-
-        return res
-            .status(200)
-            .json(
-                new ApiResponse(
-                    200,
-                    "Feedback form fetched successfully",
-                    {
-                        projectNumber: purchase.projectNumber,
-                        feedbackForm: purchase.feedbackForm
-                    }
-                )
-            );
-
-    } catch (error) {
-        console.log("Error in getFeedbackForm:", error);
-        return next(
-            new ApiError(
-                500,
-                "Internal Server Error",
-                [error.message],
-                error.stack
-            )
-        );
-    }
-};
 
 const generateFormUrl = async (req, res) => {
     try {
@@ -1671,6 +1631,45 @@ const generateFormUrl = async (req, res) => {
     }
 };
 
+const sendFeedbackFormLink = async (req, res) => {
+    try {
+        const { projectNumber } = req.body;
+
+        if (!projectNumber) {
+            return res.status(400).json({ message: "Project number is required" });
+        }
+
+        const purchase = await Purchase.findOne({ projectNumber }).populate("user");
+
+        if (!purchase || !purchase.user) {
+            return res.status(404).json({ message: "Customer not found for project" });
+        }
+
+        const customer = purchase.user;
+
+        const feedbackToken = jwt.sign(
+            {
+                userId: customer._id,
+                purchaseId: purchase._id,
+                projectNumber,
+                purpose: "feedback"
+            },
+            process.env.FEEDBACK_TOKEN_SECRET,
+            // { expiresIn: "7d" }
+        );
+
+        const feedbackUrl = `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
+
+        await sendFeedbackEmail(customer.email, customer.firstName, feedbackUrl);
+
+        res.status(200).json({
+            message: "Feedback form email sent successfully"
+        });
+    } catch (error) {
+        console.error("Send feedback error:", error);
+        res.status(500).json({ message: "Failed to send feedback email" });
+    }
+};
 
 //update pre and post doc status is no use .
 // const updatePreDocStatus = async (req, res) => {
@@ -1793,5 +1792,5 @@ export {
     generateFormUrl,
     getSignedImageUrl,
     uploadSignature,
-    getFeedbackForm
+    sendFeedbackFormLink
 }

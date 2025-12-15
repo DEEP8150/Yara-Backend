@@ -66,7 +66,7 @@ export const validateTempToken = async (req, res) => {
             formName: decoded.formName,
             customerOrg: decoded.customerOrg,
             customerAddress: decoded.customerAddress,
-            engineerDetails: decoded.engineerDetails,
+            EngineerDetails: decoded.EngineerDetails,
             EngineerSignature: await getObjectUrl(decoded.EngineerSignature)
         });
     } catch (err) {

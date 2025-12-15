@@ -17,7 +17,8 @@ import {
     generateFormUrl,
     uploadSignature,
     getSignedImageUrl,
-    getFeedbackForm,
+    sendFeedbackFormLink,
+
 } from "../controllers/user.controller.js";
 
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
@@ -62,7 +63,7 @@ userRouter.route("/unityAll-purchases").get(verifyJWT, getAllPurchases)
 userRouter.route("/docs/:projectNumber").get(verifyJWT, getAllProjectDocs)
 userRouter.route("/purchase/:projectNumber/pre-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPreDocs)
 userRouter.route("/purchase/:projectNumber/post-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPostDocs)
-userRouter.route("/feedback-form/:projectNumber").get(verifyJWT, getFeedbackForm)
+userRouter.route("/feedback-form").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), sendFeedbackFormLink)
 
 userRouter.route("/generate-url").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), generateFormUrl)
 userRouter.route("/validate-temp-token").get(validateTempToken)

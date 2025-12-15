@@ -193,3 +193,56 @@ export const sendTicketRaisedEmail = async (to, ticket, customer) => {
     console.error("Email Error:", error);
   }
 };
+
+
+export const sendFeedbackEmail = async (email, name, feedbackUrl) => {
+  try {
+    const message = `
+      <h2>We Value Your Feedback</h2>
+
+      <p>Dear ${name || "Customer"},</p>
+
+      <p>
+        Thank you for working with us.
+        Please take a moment to share your feedback for the project.
+      </p>
+
+      <p>
+        Click the link below to open the feedback form:
+      </p>
+
+      <a
+        href="${feedbackUrl}"
+        style="
+          color: #ffffff;
+          background-color: #007b5e;
+          padding: 10px 18px;
+          border-radius: 4px;
+          text-decoration: none;
+          font-weight: bold;
+          display: inline-block;
+          margin-top: 10px;
+        "
+      >
+        Open Feedback Form
+      </a>
+
+      <p>
+        Best regards,<br />
+        <strong>YARA Team</strong>
+      </p>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM,
+      to: email,
+      subject: "Feedback Request",
+      html: message,
+    });
+
+    console.log("Feedback email sent to:", email);
+  } catch (error) {
+    console.error("Error sending feedback email:", error);
+    throw error;
+  }
+};
