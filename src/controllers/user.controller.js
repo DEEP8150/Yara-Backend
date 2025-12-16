@@ -1599,17 +1599,16 @@ const generateFormUrl = async (req, res) => {
             userId,
             projectNumber,
             formName,
-            expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000)
         });
 
         const formRoutes = {
             "cold-commissioning": "cold-commissioning",
             "hot-commissioning": "hot-commissioning",
             "behavioural-observation": "behavioural-observation",
-            "safety-checklist": "safety-checklist",
-            "equipment-checklist": "equipment-checklist",
-            "general-feedback": "general-feedback",
-            "feedback-form": "feedback-form"
+            // "feedback-form": "feedback-form",
+            "safety-walk-on-site": "safety-walk-on-site",
+            "ready-to-startup": "ready-to-startup",
         };
 
         const route = formRoutes[formName];
@@ -1631,6 +1630,47 @@ const generateFormUrl = async (req, res) => {
     }
 };
 
+// const sendFeedbackFormLink = async (req, res) => {
+//     try {
+//         const { projectNumber } = req.body;
+
+//         if (!projectNumber) {
+//             return res.status(400).json({ message: "Project number is required" });
+//         }
+
+//         const purchase = await Purchase.findOne({ projectNumber }).populate("user");
+
+//         if (!purchase || !purchase.user) {
+//             return res.status(404).json({ message: "Customer not found for project" });
+//         }
+
+//         const customer = purchase.user;
+
+//         const feedbackToken = jwt.sign(
+//             {
+//                 userId: customer._id,
+//                 purchaseId: purchase._id,
+//                 projectNumber,
+//                 purpose: "feedback"
+//             },
+//             process.env.FEEDBACK_TOKEN_SECRET,
+//             // { expiresIn: "7d" }
+//         );
+
+//         const feedbackUrl = `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
+
+//         await sendFeedbackEmail(customer.email, customer.firstName, feedbackUrl);
+
+//         res.status(200).json({
+//             message: "Feedback form email sent successfully"
+//         });
+//     } catch (error) {
+//         console.error("Send feedback error:", error);
+//         res.status(500).json({ message: "Failed to send feedback email" });
+//     }
+// };
+
+
 const sendFeedbackFormLink = async (req, res) => {
     try {
         const { projectNumber } = req.body;
@@ -1647,29 +1687,44 @@ const sendFeedbackFormLink = async (req, res) => {
 
         const customer = purchase.user;
 
+        const customerOrg = customer.organization;
+        const customerAddress = {
+            address1: customer.address_1 || "",
+            address2: customer.address_2 || ""
+        };
+
         const feedbackToken = jwt.sign(
             {
                 userId: customer._id,
                 purchaseId: purchase._id,
                 projectNumber,
-                purpose: "feedback"
+                purpose: "feedback",
+                customerOrg,
+                customerAddress
             },
             process.env.FEEDBACK_TOKEN_SECRET,
             // { expiresIn: "7d" }
         );
 
-        const feedbackUrl = `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
+        const feedbackUrl =
+            `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
 
-        await sendFeedbackEmail(customer.email, customer.firstName, feedbackUrl);
+        await sendFeedbackEmail(
+            customer.email,
+            customer.firstName,
+            feedbackUrl
+        );
 
         res.status(200).json({
             message: "Feedback form email sent successfully"
         });
+
     } catch (error) {
         console.error("Send feedback error:", error);
         res.status(500).json({ message: "Failed to send feedback email" });
     }
 };
+
 
 //update pre and post doc status is no use .
 // const updatePreDocStatus = async (req, res) => {

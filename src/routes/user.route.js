@@ -22,7 +22,7 @@ import {
 } from "../controllers/user.controller.js";
 
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
-import { validateTempToken } from "../middlewares/TempFormToken.middleware.js";
+import { validateFeedbackToken, validateTempToken } from "../middlewares/TempFormToken.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const userRouter = Router()
@@ -67,6 +67,8 @@ userRouter.route("/feedback-form").post(verifyJWT, authorizeRoles("admin", "comm
 
 userRouter.route("/generate-url").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), generateFormUrl)
 userRouter.route("/validate-temp-token").get(validateTempToken)
+userRouter.route("/validate-feedback-token").get(validateFeedbackToken);
+
 
 // userRouter.route("/pre-documentUpdate/:projectNumber/:index").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), updatePreDocStatus)
 

@@ -75,3 +75,36 @@ export const validateTempToken = async (req, res) => {
 };
 
 
+export const validateFeedbackToken = async (req, res) => {
+    try {
+        const token =
+            req.headers.authorization?.split(" ")[1] ||
+            req.query.token ||
+            req.params.token;
+
+        if (!token) {
+            return res.status(401).json({ message: "Token missing" });
+        }
+
+        const decoded = jwt.verify(token, process.env.FEEDBACK_TOKEN_SECRET);
+
+        if (decoded.purpose !== "feedback") {
+            return res.status(401).json({ message: "Invalid feedback token" });
+        }
+
+        return res.json({
+            valid: true,
+            projectNumber: decoded.projectNumber,
+            userId: decoded.userId,
+            customerOrg: decoded.customerOrg,
+            customerAddress: decoded.customerAddress
+        });
+
+    } catch (err) {
+        return res.status(401).json({
+            message: "Unauthorized",
+            error: err.message
+        });
+    }
+};
+
