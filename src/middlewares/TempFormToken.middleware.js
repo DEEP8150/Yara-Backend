@@ -4,6 +4,8 @@
 
 import { TempFormToken } from "../models/TempFormToken.model.js"
 import jwt from "jsonwebtoken";
+import { getObjectUrl } from "../utils/S3Client.js";
+
 
 // export const verifyReactTempToken = async (req, res, next) => {
 //     try {
@@ -61,11 +63,48 @@ export const validateTempToken = async (req, res) => {
             valid: true,
             userId: decoded.userId,
             projectNumber: decoded.projectNumber,
-            formName: decoded.formName
+            formName: decoded.formName,
+            customerOrg: decoded.customerOrg,
+            customerAddress: decoded.customerAddress,
+            EngineerDetails: decoded.EngineerDetails,
+            EngineerSignature: await getObjectUrl(decoded.EngineerSignature)
         });
     } catch (err) {
         return res.status(401).json({ message: "Unauthorized", error: err.message });
     }
 };
 
+
+export const validateFeedbackToken = async (req, res) => {
+    try {
+        const token =
+            req.headers.authorization?.split(" ")[1] ||
+            req.query.token ||
+            req.params.token;
+
+        if (!token) {
+            return res.status(401).json({ message: "Token missing" });
+        }
+
+        const decoded = jwt.verify(token, process.env.FEEDBACK_TOKEN_SECRET);
+
+        if (decoded.purpose !== "feedback") {
+            return res.status(401).json({ message: "Invalid feedback token" });
+        }
+
+        return res.json({
+            valid: true,
+            projectNumber: decoded.projectNumber,
+            userId: decoded.userId,
+            customerOrg: decoded.customerOrg,
+            customerAddress: decoded.customerAddress
+        });
+
+    } catch (err) {
+        return res.status(401).json({
+            message: "Unauthorized",
+            error: err.message
+        });
+    }
+};
 

@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 import { User } from '../models/user.model.js';
 
+
 const verifyJWT = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
@@ -14,7 +15,7 @@ const verifyJWT = async (req, res, next) => {
         const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
         const user = await User.findById(decodeToken?._id).select("-password -refreshToken");
-        console.log("req.user", user)
+        // console.log("req.user", user)
 
         if (!user) {
             return res.status(401).json({ message: "user not found" })

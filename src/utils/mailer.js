@@ -8,7 +8,7 @@ export const transporter = nodemailer.createTransport({
   }
 })
 
-export const sendWelcomeEmailToCustomer = async (to, organization,password) => {
+export const sendWelcomeEmailToCustomer = async (to, organization, password) => {
   try {
     const mailOptions = {
       from: `"Yara" <${process.env.EMAIL_USER}>`,
@@ -30,7 +30,7 @@ export const sendWelcomeEmailToCustomer = async (to, organization,password) => {
   }
 };
 
-export const sendWelcomeEmailToEngineer = async (to, firstName, lastName,password) => {
+export const sendWelcomeEmailToEngineer = async (to, firstName, lastName, password) => {
   try {
     const mailOptions = {
       from: `"Yara" <${process.env.EMAIL_USER}>`,
@@ -51,6 +51,7 @@ export const sendWelcomeEmailToEngineer = async (to, firstName, lastName,passwor
     console.error("Email Error:", error);
   }
 };
+
 
 export const sendTicketEmailsToParties = async (email, data) => {
   try {
@@ -82,8 +83,8 @@ export const sendTicketEmailsToParties = async (email, data) => {
         <h3>Admin Action</h3>
         <p><strong>Comment:</strong> ${comment}</p>
         <p><strong>Synergy Number:</strong> ${synergyNumber}</p>`;
-        
-        // <p><strong>Customer Email:</strong> ${customerEmail}</p>
+
+    // <p><strong>Customer Email:</strong> ${customerEmail}</p>
 
     await transporter.sendMail({
       from: process.env.MAIL_FROM,
@@ -159,5 +160,89 @@ export const sendResetPasswordEmail = async (email, resetUrl) => {
     console.log("Reset password email sent");
   } catch (error) {
     console.error("Error sending reset password email:", error);
+  }
+};
+
+
+export const sendTicketRaisedEmail = async (to, ticket, customer) => {
+  try {
+    const mailOptions = {
+      from: `"Yara Support" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: `New Ticket Raised - ${ticket.projectNumber}`,
+      html: `
+        <h2>New Ticket Raised</h2>
+
+        <h3>Ticket Details</h3>
+        <p><b>Product:</b> ${ticket.productName}</p>
+        <p><b>Project Number:</b> ${ticket.projectNumber}</p>
+        <p><b>Organization:</b> ${ticket.organization}</p>
+        <p><b>Issue Type:</b> ${ticket.issueType}</p>
+        <p><b>Issue Details:</b> ${ticket.issueDetails}</p>
+
+        <br/>
+        <p>Our team will respond shortly.</p>
+
+        <p>Regards,<br><b>Yara Support Team</b></p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log("Ticket raised email sent to:", to);
+  } catch (error) {
+    console.error("Email Error:", error);
+  }
+};
+
+
+export const sendFeedbackEmail = async (email, name, feedbackUrl) => {
+  try {
+    const message = `
+      <h2>We Value Your Feedback</h2>
+
+      <p>Dear ${name || "Customer"},</p>
+
+      <p>
+        Thank you for working with us.
+        Please take a moment to share your feedback for the project.
+      </p>
+
+      <p>
+        Click the link below to open the feedback form:
+      </p>
+
+      <a
+        href="${feedbackUrl}"
+        style="
+          color: #ffffff;
+          background-color: #007b5e;
+          padding: 10px 18px;
+          border-radius: 4px;
+          text-decoration: none;
+          font-weight: bold;
+          display: inline-block;
+          margin-top: 10px;
+        "
+      >
+        Open Feedback Form
+      </a>
+
+      <p>
+        Best regards,<br />
+        <strong>YARA Team</strong>
+      </p>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM,
+      to: email,
+      subject: "Feedback Request",
+      html: message,
+    });
+
+    console.log("Feedback email sent to:", email);
+  } catch (error) {
+    console.error("Error sending feedback email:", error);
+    throw error;
   }
 };

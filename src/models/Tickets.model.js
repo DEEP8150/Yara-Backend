@@ -58,7 +58,10 @@ const ticketSchema = new mongoose.Schema(
         emailSent: {
             type: Boolean,
             default: false
-        }
+        },
+        replyDate: {
+            type: Date
+        },
     }, { timestamps: true })
 
 export const Ticket = mongoose.model("Ticket", ticketSchema)

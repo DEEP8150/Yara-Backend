@@ -14,15 +14,20 @@ import {
     getAllProjectDocs,
     getPreDocs,
     getPostDocs,
-    generateFormUrl
+    generateFormUrl,
+    uploadSignature,
+    getSignedImageUrl,
+    sendFeedbackFormLink,
+
 } from "../controllers/user.controller.js";
 
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
-import { validateTempToken } from "../middlewares/TempFormToken.middleware.js";
+import { validateFeedbackToken, validateTempToken } from "../middlewares/TempFormToken.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const userRouter = Router()
 
-userRouter.route("/registerUser").post(verifyJWT, authorizeRoles("admin"), registerCustomerAndEngineer)
+userRouter.route("/registerUser").post(verifyJWT, authorizeRoles("admin"), upload, registerCustomerAndEngineer)
 userRouter.route("/login").post(login)
 userRouter.route("/logout").post(verifyJWT, logout)
 userRouter.route("/change-password").post(verifyJWT, changeCurrentPassword)
@@ -51,15 +56,19 @@ userRouter.route("/forgot-password").post(forgotPassword)
 userRouter.route("/reset-password/:token").post(resetNewPassword)
 userRouter.route("/app-reset-password/:token").post(resetNewPassword)
 userRouter.route("/products/:id").get(verifyJWT, getUpdatedProduct)
-
+userRouter.route("/upload-signature").post(verifyJWT, uploadSignature)
+userRouter.route("/signature-signed-url").get(getSignedImageUrl)
 //for unity:
 userRouter.route("/unityAll-purchases").get(verifyJWT, getAllPurchases)
 userRouter.route("/docs/:projectNumber").get(verifyJWT, getAllProjectDocs)
 userRouter.route("/purchase/:projectNumber/pre-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPreDocs)
 userRouter.route("/purchase/:projectNumber/post-docs").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getPostDocs)
+userRouter.route("/feedback-form").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), sendFeedbackFormLink)
 
 userRouter.route("/generate-url").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), generateFormUrl)
 userRouter.route("/validate-temp-token").get(validateTempToken)
+userRouter.route("/validate-feedback-token").get(validateFeedbackToken);
+
 
 // userRouter.route("/pre-documentUpdate/:projectNumber/:index").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), updatePreDocStatus)
 

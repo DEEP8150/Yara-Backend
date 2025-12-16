@@ -44,6 +44,10 @@ const UserSchema = new mongoose.Schema(
             trim: true,
             required: true
         },
+        signatureUrl: {
+            type: String,
+            default: null
+        },
         pinNumber: {
             type: String
         },

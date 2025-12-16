@@ -32,19 +32,24 @@ const purchaseSchema = new mongoose.Schema(
                     title: String,
                     url: String,
                     isFilled: { type: Boolean, default: false },
-                    s3PdfUrl: { type: String, default: null }
+                    s3PdfUrl: { type: String, default: null },
+                    filledByEngineer: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "User",
+                        default: null
+                    }
                 }
             ],
             default: [
                 {
                     title: "Cold Commissioning Activity list Protocol",
-                    url: "http://localhost:5173/cold-commissioningl",
-                    isFilled: false,
+                    url: "http://192.168.1.223:5173/cold-commissioning",
+                    isFilled: true,
                     s3PdfUrl: null
                 },
                 {
                     title: "Annexure 6.3.2.PSA13_Ready to Start Protocol",
-                    url: "http://localhost:5173/hot-commissioning",
+                    url: "http://192.168.1.223:5173/hot-commissioning",
                     isFilled: false,
                     s3PdfUrl: null
                 }
@@ -57,13 +62,41 @@ const purchaseSchema = new mongoose.Schema(
                     title: String,
                     url: String,
                     isFilled: { type: Boolean, default: false },
-                    s3PdfUrl: { type: String, default: null }
+                    s3PdfUrl: { type: String, default: null },
+                    filledByEngineer: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "User",
+                        default: null
+                    }
                 }
             ],
             default: [
                 {
                     title: "Behavioural observation​",
-                    url: "http://localhost:5173/behavioural-observation",
+                    url: "http://192.168.1.223:5173/behavioural-observation",
+                    isFilled: false,
+                    s3PdfUrl: null
+                },
+            ]
+        },
+        feedbackForm: {
+            type: [
+                {
+                    title: String,
+                    url: String,
+                    isFilled: { type: Boolean, default: false },
+                    s3PdfUrl: { type: String, default: null },
+                    filledByUser: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "User",
+                        default: null
+                    }
+                }
+            ],
+            default: [
+                {
+                    title: "Feedback Form",
+                    url: "http://192.168.1.223:5173/feedback-form",
                     isFilled: false,
                     s3PdfUrl: null
                 }
