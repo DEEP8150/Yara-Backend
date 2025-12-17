@@ -1569,6 +1569,7 @@ const getPostDocs = async (req, res, next) => {
 const generateFormUrl = async (req, res) => {
     try {
         const { projectNumber, formName } = req.body;
+        console.log("formName", projectNumber, formName)
         const { _id: userId, firstName, lastName, signatureUrl } = req.user;
 
         const purchase = await Purchase.findOne({ projectNumber }).populate("user")
@@ -1609,9 +1610,11 @@ const generateFormUrl = async (req, res) => {
             // "feedback-form": "feedback-form",
             "safety-walk-on-site": "safety-walk-on-site",
             "ready-to-startup": "ready-to-startup",
+            "annexure-6": "annexure-6"
         };
 
         const route = formRoutes[formName];
+        console.log("formName", formName)
 
         if (!route) {
             return res.status(400).json({ message: "Invalid formName" });

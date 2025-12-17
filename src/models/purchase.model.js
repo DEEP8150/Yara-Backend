@@ -49,7 +49,7 @@ const purchaseSchema = new mongoose.Schema(
                 },
                 {
                     title: "Annexure 6.3.2.PSA13_Ready to Start Protocol",
-                    url: "http://192.168.1.223:5173/hot-commissioning",
+                    url: "http://192.168.1.223:5173/ready-to-start",
                     isFilled: false,
                     s3PdfUrl: null
                 }
