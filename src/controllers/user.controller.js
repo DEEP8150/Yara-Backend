@@ -1620,7 +1620,7 @@ const generateFormUrl = async (req, res) => {
             return res.status(400).json({ message: "Invalid formName" });
         }
 
-        const url = `http://192.168.1.223:5173/${route}?token=${tempToken}`;
+        const url = `http://192.168.1.223:5173/forms/${route}/${projectNumber}?token=${tempToken}`;
 
         return res.json({ url });
 
