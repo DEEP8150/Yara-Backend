@@ -498,41 +498,47 @@ const refreshAccessToken = async (req, res, next) => {
 
 const addNewProduct = async (req, res, next) => {
     try {
-        const { productName, productDetails } = req.body;
-        console.log("body:", productName, productDetails)
+        const { productName, productDetails, isVisibleInMobile } = req.body;
 
         if (!productName || productName.trim() === "") {
-            return res
-                .status(400)
-                .json(
-                    new ApiError(400, "Product name is required", ["productName is mandatory"])
-                );
+            return res.status(400).json(
+                new ApiError(400, "Product name is required")
+            );
         }
-        console.log("body1:", productName, productDetails)
 
-        const existingProduct = await Product.findOne({ productName: productName.trim() });
+        if (isVisibleInMobile === undefined) {
+            return res.status(400).json(
+                new ApiError(400, "Mobile visibility is required")
+            );
+        }
+
+        const existingProduct = await Product.findOne({
+            productName: productName.trim(),
+        });
+
         if (existingProduct) {
-            return res
-                .status(400)
-                .json(
-                    new ApiError(400, "Product already exists", [`Product "${productName}" already exists`])
-                );
+            return res.status(400).json(
+                new ApiError(400, "Product already exists")
+            );
         }
 
         const product = await Product.create({
             productName: productName.trim(),
             productDetails: productDetails?.trim(),
+            isVisibleInMobile
         });
 
         return res
             .status(201)
             .json(new ApiResponse(201, "Product added successfully", product));
+
     } catch (error) {
         return next(
-            new ApiError(500, "Internal Server Error", [error.message], error.stack)
+            new ApiError(500, "Internal Server Error", [error.message])
         );
     }
 };
+
 
 const addProductToCustomer = async (req, res, next) => {
     try {
@@ -942,7 +948,7 @@ const getAllProducts = async (req, res, next) => {
 const updateNewProduct = async (req, res, next) => {
     try {
         const { productId } = req.params;
-        const { productName, productDetails } = req.body;
+        const { productName, productDetails, isVisibleInMobile } = req.body;
 
         if (!productId) {
             return res.status(400).json({ message: "Product ID is required" });
@@ -965,7 +971,10 @@ const updateNewProduct = async (req, res, next) => {
             productId,
             {
                 ...(productName ? { productName: productName.trim() } : {}),
-                ...(productDetails ? { productDetails: productDetails.trim() } : {})
+                ...(productDetails ? { productDetails: productDetails.trim() } : {}),
+                ...(isVisibleInMobile !== undefined
+                    ? { isVisibleInMobile: Boolean(isVisibleInMobile) }
+                    : {})
             },
             { new: true }
         );
@@ -1208,11 +1217,9 @@ const updateEngineer = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const updates = { ...req.body }; // make sure it's a real object
-
+        const updates = { ...req.body };
         delete updates.role;
 
-        // If a new signature image is uploaded
         if (req.file) {
             const uploadedKey = await uploadToS3(req.file);
             updates.signatureUrl = uploadedKey;
@@ -1241,6 +1248,8 @@ const updateEngineer = async (req, res, next) => {
             return res.status(404)
                 .json(new ApiError(404, "Engineer not found"));
         }
+
+        console.log("updated engineer details", updatedEngineer)
 
         return res.status(200)
             .json(new ApiResponse(200, "Engineer updated successfully", updatedEngineer));
