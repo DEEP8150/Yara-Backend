@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
-import { validateFeedbackToken, validateTempToken } from "../middlewares/TempFormToken.middleware.js";
+import { validateFeedbackToken, validateTempToken, validateTempTokenMiddleware } from "../middlewares/TempFormToken.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { getObjectPdf, uploadPdf } from "../utils/S3Client.js";
 import {
@@ -10,6 +10,7 @@ import {
     resetNewPassword, getCustomerDetails, updateCustomer, getCustomerById, getUpdatedProduct, getEngineerById, updateEngineer, getAllPurchases,
     getAllProjectDocs, getPreDocs, getPostDocs, generateFormUrl, uploadSignature, getSignedImageUrl,
     sendFeedbackFormLink,
+    markDocumentFilled,
 } from "../controllers/user.controller.js";
 
 
@@ -60,6 +61,10 @@ userRouter.route("/feedback-form").post(verifyJWT, authorizeRoles("admin", "comm
 userRouter.route("/generate-url").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), generateFormUrl)
 userRouter.route("/validate-temp-token").get(validateTempToken)
 userRouter.route("/validate-feedback-token").get(validateFeedbackToken);
+userRouter.route("/mark-document-filled").post(validateTempTokenMiddleware, markDocumentFilled);
+
+
+
 
 
 // userRouter.route("/pre-documentUpdate/:projectNumber/:index").post(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), updatePreDocStatus)
