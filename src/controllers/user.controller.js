@@ -498,41 +498,47 @@ const refreshAccessToken = async (req, res, next) => {
 
 const addNewProduct = async (req, res, next) => {
     try {
-        const { productName, productDetails } = req.body;
-        console.log("body:", productName, productDetails)
+        const { productName, productDetails, isVisibleInMobile } = req.body;
 
         if (!productName || productName.trim() === "") {
-            return res
-                .status(400)
-                .json(
-                    new ApiError(400, "Product name is required", ["productName is mandatory"])
-                );
+            return res.status(400).json(
+                new ApiError(400, "Product name is required")
+            );
         }
-        console.log("body1:", productName, productDetails)
 
-        const existingProduct = await Product.findOne({ productName: productName.trim() });
+        if (isVisibleInMobile === undefined) {
+            return res.status(400).json(
+                new ApiError(400, "Mobile visibility is required")
+            );
+        }
+
+        const existingProduct = await Product.findOne({
+            productName: productName.trim(),
+        });
+
         if (existingProduct) {
-            return res
-                .status(400)
-                .json(
-                    new ApiError(400, "Product already exists", [`Product "${productName}" already exists`])
-                );
+            return res.status(400).json(
+                new ApiError(400, "Product already exists")
+            );
         }
 
         const product = await Product.create({
             productName: productName.trim(),
             productDetails: productDetails?.trim(),
+            isVisibleInMobile
         });
 
         return res
             .status(201)
             .json(new ApiResponse(201, "Product added successfully", product));
+
     } catch (error) {
         return next(
-            new ApiError(500, "Internal Server Error", [error.message], error.stack)
+            new ApiError(500, "Internal Server Error", [error.message])
         );
     }
 };
+
 
 const addProductToCustomer = async (req, res, next) => {
     try {
@@ -912,7 +918,14 @@ const getAllPurchasedProductsOfCustomer = async (req, res, next) => {
         }
 
         const purchases = await Purchase.find({ user: customerId })
-            .populate("product")
+            .populate({
+                path: "product",
+                select: "productName productDetails isVisibleInMobile childrenProducts",
+                populate: {
+                    path: "childrenProducts",
+                    select: "productName productDetails isVisibleInMobile"
+                }
+            });
 
         return res
             .status(200)
@@ -942,7 +955,7 @@ const getAllProducts = async (req, res, next) => {
 const updateNewProduct = async (req, res, next) => {
     try {
         const { productId } = req.params;
-        const { productName, productDetails } = req.body;
+        const { productName, productDetails, isVisibleInMobile } = req.body;
 
         if (!productId) {
             return res.status(400).json({ message: "Product ID is required" });
@@ -965,7 +978,10 @@ const updateNewProduct = async (req, res, next) => {
             productId,
             {
                 ...(productName ? { productName: productName.trim() } : {}),
-                ...(productDetails ? { productDetails: productDetails.trim() } : {})
+                ...(productDetails ? { productDetails: productDetails.trim() } : {}),
+                ...(isVisibleInMobile !== undefined
+                    ? { isVisibleInMobile: Boolean(isVisibleInMobile) }
+                    : {})
             },
             { new: true }
         );
@@ -1208,11 +1224,9 @@ const updateEngineer = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const updates = { ...req.body }; // make sure it's a real object
-
+        const updates = { ...req.body };
         delete updates.role;
 
-        // If a new signature image is uploaded
         if (req.file) {
             const uploadedKey = await uploadToS3(req.file);
             updates.signatureUrl = uploadedKey;
@@ -1241,6 +1255,8 @@ const updateEngineer = async (req, res, next) => {
             return res.status(404)
                 .json(new ApiError(404, "Engineer not found"));
         }
+
+        console.log("updated engineer details", updatedEngineer)
 
         return res.status(200)
             .json(new ApiResponse(200, "Engineer updated successfully", updatedEngineer));
@@ -1565,10 +1581,10 @@ const getPostDocs = async (req, res, next) => {
 };
 
 
-
 const generateFormUrl = async (req, res) => {
     try {
         const { projectNumber, formName } = req.body;
+        console.log("formName", projectNumber, formName)
         const { _id: userId, firstName, lastName, signatureUrl } = req.user;
 
         const purchase = await Purchase.findOne({ projectNumber }).populate("user")
@@ -1606,18 +1622,19 @@ const generateFormUrl = async (req, res) => {
             "cold-commissioning": "cold-commissioning",
             "hot-commissioning": "hot-commissioning",
             "behavioural-observation": "behavioural-observation",
-            // "feedback-form": "feedback-form",
             "safety-walk-on-site": "safety-walk-on-site",
             "ready-to-startup": "ready-to-startup",
+            "annexure-6": "annexure-6"
         };
 
         const route = formRoutes[formName];
+        console.log("formName", formName)
 
         if (!route) {
             return res.status(400).json({ message: "Invalid formName" });
         }
 
-        const url = `http://192.168.1.223:5173/${route}?token=${tempToken}`;
+        const url = `http://192.168.1.223:5173/form?token=${tempToken}`;
 
         return res.json({ url });
 
@@ -1629,47 +1646,6 @@ const generateFormUrl = async (req, res) => {
         });
     }
 };
-
-// const sendFeedbackFormLink = async (req, res) => {
-//     try {
-//         const { projectNumber } = req.body;
-
-//         if (!projectNumber) {
-//             return res.status(400).json({ message: "Project number is required" });
-//         }
-
-//         const purchase = await Purchase.findOne({ projectNumber }).populate("user");
-
-//         if (!purchase || !purchase.user) {
-//             return res.status(404).json({ message: "Customer not found for project" });
-//         }
-
-//         const customer = purchase.user;
-
-//         const feedbackToken = jwt.sign(
-//             {
-//                 userId: customer._id,
-//                 purchaseId: purchase._id,
-//                 projectNumber,
-//                 purpose: "feedback"
-//             },
-//             process.env.FEEDBACK_TOKEN_SECRET,
-//             // { expiresIn: "7d" }
-//         );
-
-//         const feedbackUrl = `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
-
-//         await sendFeedbackEmail(customer.email, customer.firstName, feedbackUrl);
-
-//         res.status(200).json({
-//             message: "Feedback form email sent successfully"
-//         });
-//     } catch (error) {
-//         console.error("Send feedback error:", error);
-//         res.status(500).json({ message: "Failed to send feedback email" });
-//     }
-// };
-
 
 const sendFeedbackFormLink = async (req, res) => {
     try {
@@ -1724,6 +1700,106 @@ const sendFeedbackFormLink = async (req, res) => {
         res.status(500).json({ message: "Failed to send feedback email" });
     }
 };
+
+const markDocumentFilled = async (req, res) => {
+    try {
+        const { projectNumber, formName } = req.user;
+
+        console.log("projectNumber", projectNumber)
+        console.log("formName", formName)
+
+        const FORM_GROUP_MAP = {
+            "behavioural-observation": "preDocs",
+            "annexure-6": "preDocs",
+            "safety-walk-on-site": "preDocs",
+            "cold-commissioning": "postDocs",
+            "hot-commissioning": "postDocs",
+            "ready-to-startup": "postDocs"
+        };
+
+        const docsKey = FORM_GROUP_MAP[formName];
+
+        const result = await Purchase.updateOne(
+            {
+                projectNumber,
+                [`${docsKey}.formKey`]: formName,
+                [`${docsKey}.isFilled`]: false
+            },
+            {
+                $set: {
+                    [`${docsKey}.$.isFilled`]: true,
+                    [`${docsKey}.$.filledAt`]: new Date(),
+                    [`${docsKey}.$.filledByEngineer`]: req.user.userId
+                }
+            }
+        );
+
+        console.log("result", result)
+
+        if (result.modifiedCount === 0) {
+            return res.status(400).json({
+                message: "Document already submitted"
+            });
+        }
+
+
+        const token = req.headers.authorization.split(" ")[1];
+        await TempFormToken.updateOne(
+            { token },
+            { $set: { used: true } }
+        );
+
+        return res.json({ message: "Document submitted successfully" });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: "Error marking document filled",
+            error: err.message
+        });
+    }
+};
+
+// const sendFeedbackFormLink = async (req, res) => {
+//     try {
+//         const { projectNumber } = req.body;
+
+//         if (!projectNumber) {
+//             return res.status(400).json({ message: "Project number is required" });
+//         }
+
+//         const purchase = await Purchase.findOne({ projectNumber }).populate("user");
+
+//         if (!purchase || !purchase.user) {
+//             return res.status(404).json({ message: "Customer not found for project" });
+//         }
+
+//         const customer = purchase.user;
+
+//         const feedbackToken = jwt.sign(
+//             {
+//                 userId: customer._id,
+//                 purchaseId: purchase._id,
+//                 projectNumber,
+//                 purpose: "feedback"
+//             },
+//             process.env.FEEDBACK_TOKEN_SECRET,
+//             // { expiresIn: "7d" }
+//         );
+
+//         const feedbackUrl = `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
+
+//         await sendFeedbackEmail(customer.email, customer.firstName, feedbackUrl);
+
+//         res.status(200).json({
+//             message: "Feedback form email sent successfully"
+//         });
+//     } catch (error) {
+//         console.error("Send feedback error:", error);
+//         res.status(500).json({ message: "Failed to send feedback email" });
+//     }
+// };
+
+
 
 
 //update pre and post doc status is no use .
@@ -1811,6 +1887,10 @@ const sendFeedbackFormLink = async (req, res) => {
 // };
 
 
+
+
+
+
 export {
     generateAccessAndRefreshToken,
     registerCustomerAndEngineer,
@@ -1847,5 +1927,6 @@ export {
     generateFormUrl,
     getSignedImageUrl,
     uploadSignature,
-    sendFeedbackFormLink
+    sendFeedbackFormLink,
+    markDocumentFilled
 }

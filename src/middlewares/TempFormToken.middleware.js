@@ -5,6 +5,7 @@
 import { TempFormToken } from "../models/TempFormToken.model.js"
 import jwt from "jsonwebtoken";
 import { getObjectUrl } from "../utils/S3Client.js";
+import { Purchase } from "../models/purchase.model.js";
 
 
 // export const verifyReactTempToken = async (req, res, next) => {
@@ -53,11 +54,42 @@ export const validateTempToken = async (req, res) => {
 
         const dbToken = await TempFormToken.findOne({
             token: tempToken,
-            used: false
+            used: false,
+
         });
 
         if (!dbToken)
-            return res.status(401).json({ message: "Invalid or expired token" });
+            return res.status(401).json({
+                message: "Token already used or expired",
+                alreadySubmitted: true,
+
+            });
+
+        const purchase = await Purchase.findOne({ projectNumber: decoded.projectNumber });
+        if (!purchase)
+            return res.status(404).json({ message: "Project not found" });
+
+        const FORM_GROUP_MAP = {
+            "behavioural-observation": "preDocs",
+            "annexure-6": "preDocs",
+            "safety-walk-on-site": "preDocs",
+            "cold-commissioning": "postDocs",
+            "hot-commissioning": "postDocs",
+            "ready-to-startup": "postDocs"
+        };
+
+        const docsKey = FORM_GROUP_MAP[decoded.formName];
+        const doc = purchase[docsKey]?.find(d => d.formKey === decoded.formName);
+
+        if (doc?.isFilled) {
+            return res.json({
+                valid: false,
+                alreadySubmitted: true,
+                projectNumber: decoded.projectNumber,
+                formName: decoded.formName,
+                message: "You already submitted this document"
+            });
+        }
 
         return res.json({
             valid: true,
@@ -74,6 +106,44 @@ export const validateTempToken = async (req, res) => {
     }
 };
 
+
+export const validateTempTokenMiddleware = async (req, res, next) => {
+    try {
+        const tempToken =
+            req.headers.authorization?.split(" ")[1] || req.query.token || req.headers.token;
+
+        console.log("tempToken", tempToken)
+
+        if (!tempToken)
+            return res.status(401).json({ message: "Token missing" });
+
+        const decoded = jwt.verify(tempToken, process.env.TEMP_TOKEN_SECRET);
+
+        console.log("decoded", decoded)
+
+        const dbToken = await TempFormToken.findOne({
+            token: tempToken,
+            used: false
+        });
+
+        if (!dbToken)
+            return res.status(401).json({ message: "Invalid or expired token" });
+
+        req.user = {
+            userId: decoded.userId,
+            projectNumber: decoded.projectNumber,
+            formName: decoded.formName,
+            customerOrg: decoded.customerOrg,
+            customerAddress: decoded.customerAddress,
+            EngineerDetails: decoded.EngineerDetails,
+            EngineerSignature: decoded.EngineerSignature
+        };
+
+        next();
+    } catch (err) {
+        return res.status(401).json({ message: "Unauthorized", error: err.message });
+    }
+};
 
 export const validateFeedbackToken = async (req, res) => {
     try {

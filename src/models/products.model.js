@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { type } from "os";
 
 const productSchema = new mongoose.Schema(
     {
@@ -11,14 +12,12 @@ const productSchema = new mongoose.Schema(
             type: String,
 
         },
-
         childrenProducts: [
             {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: "Product",
             },
         ],
-
 
         isVisibleInMobile: {
             type: Boolean,

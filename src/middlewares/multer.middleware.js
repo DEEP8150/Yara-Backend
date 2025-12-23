@@ -2,4 +2,4 @@ import multer from "multer";
 
 const storage = multer.memoryStorage();
 
-export const upload = multer({ storage }).single("signatureFile");
+export const upload = multer({ storage })
