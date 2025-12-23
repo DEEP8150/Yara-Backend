@@ -1759,6 +1759,86 @@ const markDocumentFilled = async (req, res) => {
     }
 };
 
+
+const getAllDocumentsByProjectNumber = async (req, res, next) => {
+    try {
+        const { projectNumber } = req.params;
+
+        const result = await Purchase.aggregate([
+            { $match: { projectNumber } },
+            {
+                $project: {
+                    projectNumber: 1,
+                    documents: {
+                        $filter: {
+                            input: {
+                                $concatArrays: [
+                                    {
+                                        $map: {
+                                            input: "$preDocs",
+                                            as: "doc",
+                                            in: { $mergeObjects: ["$$doc", { type: "pre" }] }
+                                        }
+                                    },
+                                    {
+                                        $map: {
+                                            input: "$postDocs",
+                                            as: "doc",
+                                            in: { $mergeObjects: ["$$doc", { type: "post" }] }
+                                        }
+                                    }
+                                ]
+                            },
+                            as: "doc",
+                            cond: { $ne: ["$$doc.s3PdfUrl", null] }
+                        }
+                    }
+                }
+            }
+        ]);
+
+        if (!result.length) {
+            return next(
+                new ApiError(
+                    404,
+                    "Project not found",
+                    [`No documents found for project ${projectNumber}`]
+                )
+            );
+        }
+
+        return res.status(200).json(
+            new ApiResponse(200, result[0], "Documents fetched successfully")
+        );
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getAllAttachDocument = async (req, res) => {
+
+    try {
+        const { userId, projectNumber } = req.params;
+
+        // Find purchase by user and projectNumber
+        const purchase = await Purchase.findOne({ user: userId, projectNumber });
+
+        if (!purchase) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+
+        res.status(200).json({ attachDocuments: purchase.attachDocuments || [] });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to fetch attach documents" });
+    }
+};
+
+
+
+
+
 // const sendFeedbackFormLink = async (req, res) => {
 //     try {
 //         const { projectNumber } = req.body;
@@ -1928,5 +2008,7 @@ export {
     getSignedImageUrl,
     uploadSignature,
     sendFeedbackFormLink,
-    markDocumentFilled
+    markDocumentFilled,
+    getAllDocumentsByProjectNumber,
+    getAllAttachDocument
 }

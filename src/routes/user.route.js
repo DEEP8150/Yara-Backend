@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
 import { validateFeedbackToken, validateTempToken, validateTempTokenMiddleware } from "../middlewares/TempFormToken.middleware.js";
-import { upload } from "../middlewares/multer.middleware.js";
-import { getObjectPdf, uploadPdf } from "../utils/S3Client.js";
+import { upload, uploadAttachDoc } from "../middlewares/multer.middleware.js";
+import { getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
 import {
     addNewProduct, addProductToCustomer, changeCurrentPassword, createTicket, getCustomerDetailsAndPurchases, getTickets,
     getTicketById, login, logout, refreshAccessToken, registerCustomerAndEngineer, updateAssignedProduct, getAllCustomers,
@@ -11,6 +11,8 @@ import {
     getAllProjectDocs, getPreDocs, getPostDocs, generateFormUrl, uploadSignature, getSignedImageUrl,
     sendFeedbackFormLink,
     markDocumentFilled,
+    getAllDocumentsByProjectNumber,
+    getAllAttachDocument,
 } from "../controllers/user.controller.js";
 
 
@@ -48,7 +50,7 @@ userRouter.route("/products/:id").get(verifyJWT, getUpdatedProduct)
 
 userRouter.route("/upload-signature").post(verifyJWT, uploadSignature)
 userRouter.route("/signature-signed-url").get(getSignedImageUrl)
-userRouter.route("/upload-pdf").post(verifyJWT, upload.single("pdf"), uploadPdf)
+userRouter.route("/upload-pdf").post(upload.single("pdf"), uploadPdf)
 userRouter.route("/pdf-url").get(getObjectPdf)
 
 //for unity:
@@ -62,6 +64,10 @@ userRouter.route("/generate-url").post(verifyJWT, authorizeRoles("admin", "commi
 userRouter.route("/validate-temp-token").get(validateTempToken)
 userRouter.route("/validate-feedback-token").get(validateFeedbackToken);
 userRouter.route("/mark-document-filled").post(validateTempTokenMiddleware, markDocumentFilled);
+userRouter.route("/project/:projectNumber/documents").get(verifyJWT, authorizeRoles("admin"), getAllDocumentsByProjectNumber);
+userRouter.route("/purchase/attachDocument").post(verifyJWT, uploadAttachDoc.single("file"), uploadAttachDocument)
+userRouter.route("/:userId/project/:projectNumber/attachDocuments").get(verifyJWT, getAllAttachDocument)
+userRouter.route("/upload-feedback-form").post(upload.single("pdf"), uploadFeedbackForm)
 
 
 

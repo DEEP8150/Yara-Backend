@@ -3,3 +3,30 @@ import multer from "multer";
 const storage = multer.memoryStorage();
 
 export const upload = multer({ storage })
+
+
+const AttachFile = (req, file, cb) => {
+    const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "application/pdf",
+    ];
+
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(
+            new Error("Only JPEG, JPG, PNG and PDF files are allowed"),
+            false
+        );
+    }
+};
+
+export const uploadAttachDoc = multer({
+    storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024,
+    },
+    fileFilter: AttachFile,
+});
