@@ -13,6 +13,7 @@ import jwt from "jsonwebtoken";
 import { generatePresignedUrl, getObjectUrl } from "../utils/S3Client.js";
 import { Feedback } from "../models/feedback.model.js";
 import { randomUUID } from "crypto";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 // import { generatePresignedUrl } from "../utils/"
 
 
@@ -777,14 +778,22 @@ const createTicket = async (req, res) => {
 
 const getTickets = async (req, res) => {
     try {
-        let tickets;
+        const { year } = req.query;
+
+        const start = year ? new Date(`${year}-01-01`) : null;
+        const end = year ? new Date(`${year}-12-31`) : null;
+
+        let query = {};
 
         if (req.user.role === "customer") {
-            tickets = await Ticket.find({ customerEmail: req.user.email })
-                .sort({ createdAt: -1 });
-        } else {
-            tickets = await Ticket.find().sort({ createdAt: -1 });
+            query.customerEmail = req.user.email;
         }
+
+        if (year) {
+            query.createdAt = { $gte: start, $lte: end };
+        }
+
+        const tickets = await Ticket.find(query).sort({ createdAt: -1 });
 
         const formatted = tickets.map(t => {
             const date = new Date(t.createdAt);
@@ -805,21 +814,11 @@ const getTickets = async (req, res) => {
             let replyDateFormatted = "";
             if (t.replyDate) {
                 const rDate = new Date(t.replyDate);
-
-                const rFormattedDate = rDate.toLocaleDateString("en-GB", {
+                replyDateFormatted = rDate.toLocaleDateString("en-GB", {
                     day: "2-digit",
                     month: "short",
                     year: "numeric",
                 });
-
-                // const rFormattedTime = rDate.toLocaleTimeString("en-US", {
-                //     hour: "2-digit",
-                //     minute: "2-digit",
-                //     second: "2-digit",
-                //     hour12: true
-                // });
-
-                replyDateFormatted = `${rFormattedDate}`;
             }
 
             return {
@@ -829,11 +828,9 @@ const getTickets = async (req, res) => {
             };
         });
 
-
         return res.status(200).json(
             new ApiResponse(200, "Tickets fetched successfully", formatted)
         );
-
     } catch (error) {
         console.error("Error in getTickets:", error);
         return res.status(500).json(
@@ -841,6 +838,7 @@ const getTickets = async (req, res) => {
         );
     }
 };
+
 
 const getTicketById = async (req, res) => {
     try {
@@ -1740,11 +1738,13 @@ const markDocumentFilled = async (req, res) => {
 
         const docsKey = FORM_GROUP_MAP[formName];
 
+        console.log("docsKey", docsKey)
+
         const result = await Purchase.updateOne(
             {
                 projectNumber,
-                [`${docsKey}.formKey`]: formName,
-                [`${docsKey}.isFilled`]: false
+                [`${docsKey}.$.formKey`]: formName,
+                [`${docsKey}.$.isFilled`]: false
             },
             {
                 $set: {
@@ -1880,8 +1880,16 @@ const getAllFeedbacksFormsByProjectNumber = async (req, res) => {
 
 export const getFeedbackScoreForGraph = async (req, res) => {
     try {
+        const { year } = req.query;
+
+        const start = new Date(`${year}-01-01`);
+        const end = new Date(`${year}-12-31`);
+
         const feedbacks = await Feedback.find(
-            { status: "SUBMITTED" },
+            {
+                status: "SUBMITTED",
+                submittedAt: { $gte: start, $lte: end },
+            },
             { scorePercentage: 1, submittedAt: 1 }
         );
 
@@ -1890,9 +1898,7 @@ export const getFeedbackScoreForGraph = async (req, res) => {
             "July", "August", "September", "October", "November", "December"
         ];
 
-        const MAX_SCORE = 60
         const monthlyData = {};
-
         allMonths.forEach(month => {
             monthlyData[month] = {
                 month,
@@ -1910,17 +1916,11 @@ export const getFeedbackScoreForGraph = async (req, res) => {
 
             const date = new Date(fb.submittedAt);
             const monthName = allMonths[date.getMonth()];
-            if (!monthlyData[monthName]) return;
 
-            if (percentage >= 80) {
-                monthlyData[monthName]["80 or above"]++;
-            } else if (percentage >= 51) {
-                monthlyData[monthName]["51-79"]++;
-            } else if (percentage >= 35) {
-                monthlyData[monthName]["35-50"]++;
-            } else {
-                monthlyData[monthName]["35 or below"]++;
-            }
+            if (percentage >= 80) monthlyData[monthName]["80 or above"]++;
+            else if (percentage >= 51) monthlyData[monthName]["51-79"]++;
+            else if (percentage >= 35) monthlyData[monthName]["35-50"]++;
+            else monthlyData[monthName]["35 or below"]++;
 
             monthlyData[monthName].total++;
         });
@@ -1934,6 +1934,8 @@ export const getFeedbackScoreForGraph = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch feedback stats" });
     }
 };
+
+
 
 
 

@@ -159,16 +159,21 @@ export const validateFeedbackToken = async (req, res) => {
 
         const decoded = jwt.verify(token, process.env.FEEDBACK_TOKEN_SECRET);
 
+
         if (decoded.purpose !== "feedback") {
             return res.status(401).json({ message: "Invalid feedback token" });
         }
+
+        const feedback = await Feedback.findOne({ tokenId: decoded.tokenId });
 
         return res.json({
             valid: true,
             projectNumber: decoded.projectNumber,
             userId: decoded.userId,
             customerOrg: decoded.customerOrg,
-            customerAddress: decoded.customerAddress
+            customerAddress: decoded.customerAddress,
+            status: feedback?.status || "PENDING"
+
         });
 
     } catch (err) {

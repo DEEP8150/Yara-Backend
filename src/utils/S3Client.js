@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import dotenv from "dotenv";
@@ -276,3 +276,31 @@ export const uploadFeedbackForm = async (req, res) => {
 };
 
 
+export const DeleteAttachDocument = async (req, res) => {
+  try {
+    const docId = req.params.id;
+
+    const purchase = await Purchase.findOne({ "attachDocuments._id": docId });
+    if (!purchase) return res.status(404).json({ message: "Document not found" });
+
+    const doc = purchase.attachDocuments.id(docId);
+    if (!doc) return res.status(404).json({ message: "Document not found in Purchase" });
+
+    const urlParts = doc.url.split("/");
+    const keyIndex = urlParts.findIndex(part => part.includes(".com")) + 1;
+    const s3Key = urlParts.slice(keyIndex).join("/");
+
+    await s3Client.send(new DeleteObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: s3Key
+    }));
+
+    purchase.attachDocuments.pull({ _id: docId });
+    await purchase.save();
+
+    res.json({ message: "Document deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete document" });
+  }
+};
