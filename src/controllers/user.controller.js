@@ -1678,17 +1678,13 @@ const sendFeedbackFormLink = async (req, res) => {
 
         const fileName = `Feedback.pdf`;
 
-        // console.log("tokenId", tokenId)
         const feedback = await Feedback.create({
             purchaseId: purchase._id,
             projectNumber,
             tokenId,
-            totalScore,
-            scorePercentage,
-            grade,
-            status: "SUBMITTED",
-            submittedAt: new Date(),
-            s3PdfUrl,
+            status: "PENDING",
+            fileName,
+            submittedAt: null,
         });
 
         const feedbackToken = jwt.sign(
@@ -1909,9 +1905,8 @@ export const getFeedbackScoreForGraph = async (req, res) => {
         });
 
         feedbacks.forEach(fb => {
-            const percentage = Math.round((Number(fb.totalScore) / MAX_SCORE) * 100);
+            const percentage = Number(fb.scorePercentage);
             if (isNaN(percentage)) return;
-
 
             const date = new Date(fb.submittedAt);
             const monthName = allMonths[date.getMonth()];
