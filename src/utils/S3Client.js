@@ -4,6 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import dotenv from "dotenv";
 import { Purchase } from "../models/purchase.model.js";
 import { Product } from "../models/products.model.js";
+import { Feedback } from "../models/feedback.model.js";
 dotenv.config();
 
 const s3Client = new S3Client({
@@ -186,54 +187,92 @@ export const uploadAttachDocument = async (req, res) => {
   }
 };
 
+// export const uploadFeedbackForm = async (req, res) => {
+//   try {
+//     const { projectNumber, title } = req.body;
+
+//     if (!projectNumber || !file) {
+//       return res.status(400).json({ message: "Project number and file are required" });
+//     }
+
+//     const file = req.file;
+
+//     const filename = file.originalname;
+
+//     const fileKey = `feedback-form/${projectNumber}/${filename}`;
+
+//     await s3Client.send(
+//       new PutObjectCommand({
+//         Bucket: process.env.BUCKET_NAME,
+//         Key: fileKey,
+//         Body: file.buffer,
+//         ContentType: file.mimetype,
+//       })
+//     );
+
+//     const fileUrl = `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${fileKey}`;
+
+
+//     const purchase = await Purchase.findOneAndUpdate(
+//       { projectNumber },
+//       {
+//         $push: {
+//           feedbackForm: {
+//             title: title || "Feedback Form",
+//             s3PdfUrl: fileUrl,
+//             isFilled: true,
+//           },
+//         },
+//       },
+//       { new: true }
+//     );
+
+//     if (!purchase) {
+//       return res.status(404).json({ message: "Purchase not found" });
+//     }
+
+//     res.status(200).json({ message: "Feedback form uploaded successfully", url: fileUrl });
+
+//   } catch (err) {
+//     console.error("Upload error:", err);
+//     res.status(500).json({ message: "Upload failed" });
+//   }
+// };
+
+
 export const uploadFeedbackForm = async (req, res) => {
   try {
-    const { projectNumber, title } = req.body;
+    const { tokenId, projectNumber } = req.feedbackToken;
+    const feedback = req.feedbackDoc;
 
-    if (!projectNumber || !file) {
-      return res.status(400).json({ message: "Project number and file are required" });
+    if (!req.file) {
+      return res.status(400).json({ message: "PDF missing" });
     }
 
-    const file = req.file;
+    const fileKey = `feedback-form/${projectNumber}/${tokenId}.pdf`;
 
-    const filename = file.originalname;
+    await s3Client.send(new PutObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: fileKey,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype
+    }));
 
-    const fileKey = `feedback-form/${projectNumber}/${filename}`;
-
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME,
-        Key: fileKey,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-      })
-    );
-
-    const fileUrl = `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${fileKey}`;
+    feedback.s3PdfUrl = `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${fileKey}`;
+    feedback.status = "SUBMITTED";
+    feedback.submittedAt = new Date();
+    feedback.totalScore = req.body.totalScore;
+    feedback.scorePercentage = req.body.scorePercentage;
+    feedback.grade = req.body.grade;
 
 
-    const purchase = await Purchase.findOneAndUpdate(
-      { projectNumber },
-      {
-        $push: {
-          feedbackForm: {
-            title: title || "Feedback Form",
-            s3PdfUrl: fileUrl,
-            isFilled: true,
-          },
-        },
-      },
-      { new: true }
-    );
+    await feedback.save();
 
-    if (!purchase) {
-      return res.status(404).json({ message: "Purchase not found" });
-    }
-
-    res.status(200).json({ message: "Feedback form uploaded successfully", url: fileUrl });
-
+    res.json({ message: "Feedback submitted successfully" });
   } catch (err) {
-    console.error("Upload error:", err);
+    console.error(err);
     res.status(500).json({ message: "Upload failed" });
   }
 };
+
+

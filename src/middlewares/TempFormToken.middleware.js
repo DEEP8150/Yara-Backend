@@ -6,6 +6,7 @@ import { TempFormToken } from "../models/TempFormToken.model.js"
 import jwt from "jsonwebtoken";
 import { getObjectUrl } from "../utils/S3Client.js";
 import { Purchase } from "../models/purchase.model.js";
+import { Feedback } from "../models/feedback.model.js";
 
 
 // export const verifyReactTempToken = async (req, res, next) => {
@@ -177,4 +178,37 @@ export const validateFeedbackToken = async (req, res) => {
         });
     }
 };
+
+export const validateFeedbackTokenMiddleware = async (req, res, next) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        console.log("token", token)
+        if (!token) {
+            return res.status(401).json({ message: "Token missing" });
+        }
+
+        const decoded = jwt.verify(token, process.env.FEEDBACK_TOKEN_SECRET);
+        console.log("decoded", decoded)
+
+        const feedback = await Feedback.findOne({ tokenId: decoded.tokenId });
+        console.log("feedback", feedback)
+
+        if (!feedback) {
+            return res.status(400).json({ message: "Invalid token" });
+        }
+
+        if (feedback.status === "SUBMITTED") {
+            return res.status(409).json({ message: "Feedback already submitted" });
+        }
+
+        req.feedbackToken = decoded;
+        req.feedbackDoc = feedback;
+
+        next();
+    } catch (err) {
+        console.log("err", err)
+        return res.status(401).json({ message: "Invalid or expired token" });
+    }
+};
+
 

@@ -111,28 +111,8 @@ const purchaseSchema = new mongoose.Schema(
                 }
             ]
         },
-        feedbackForm: {
-            type: [
-                {
-                    title: String,
-                    url: String,
-                    isFilled: { type: Boolean, default: false },
-                    s3PdfUrl: { type: String, default: null },
-                    filledByUser: {
-                        type: mongoose.Schema.Types.ObjectId,
-                        ref: "User",
-                        default: null
-                    }
-                }
-            ],
-            default: [
-                {
-                    title: "Feedback Form",
-                    isFilled: false,
-                    s3PdfUrl: null
-                }
-            ]
-        }
+
+
     }, { timestamps: true })
 
 export const Purchase = mongoose.model("Purchase", purchaseSchema)

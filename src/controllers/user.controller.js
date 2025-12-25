@@ -11,6 +11,8 @@ import bcrypt from 'bcrypt'
 import { TempFormToken } from "../models/TempFormToken.model.js";
 import jwt from "jsonwebtoken";
 import { generatePresignedUrl, getObjectUrl } from "../utils/S3Client.js";
+import { Feedback } from "../models/feedback.model.js";
+import { randomUUID } from "crypto";
 // import { generatePresignedUrl } from "../utils/"
 
 
@@ -1655,7 +1657,9 @@ const sendFeedbackFormLink = async (req, res) => {
             return res.status(400).json({ message: "Project number is required" });
         }
 
-        const purchase = await Purchase.findOne({ projectNumber }).populate("user");
+        const purchase = await Purchase
+            .findOne({ projectNumber })
+            .populate("user");
 
         if (!purchase || !purchase.user) {
             return res.status(404).json({ message: "Customer not found for project" });
@@ -1669,8 +1673,27 @@ const sendFeedbackFormLink = async (req, res) => {
             address2: customer.address_2 || ""
         };
 
+
+        const tokenId = randomUUID();
+
+        const fileName = `Feedback.pdf`;
+
+        // console.log("tokenId", tokenId)
+        const feedback = await Feedback.create({
+            purchaseId: purchase._id,
+            projectNumber,
+            tokenId,
+            totalScore,
+            scorePercentage,
+            grade,
+            status: "SUBMITTED",
+            submittedAt: new Date(),
+            s3PdfUrl,
+        });
+
         const feedbackToken = jwt.sign(
             {
+                tokenId,
                 userId: customer._id,
                 purchaseId: purchase._id,
                 projectNumber,
@@ -1678,9 +1701,10 @@ const sendFeedbackFormLink = async (req, res) => {
                 customerOrg,
                 customerAddress
             },
-            process.env.FEEDBACK_TOKEN_SECRET,
-            // { expiresIn: "7d" }
+            process.env.FEEDBACK_TOKEN_SECRET
         );
+
+        console.log("feedbackToken", feedbackToken)
 
         const feedbackUrl =
             `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
@@ -1700,6 +1724,7 @@ const sendFeedbackFormLink = async (req, res) => {
         res.status(500).json({ message: "Failed to send feedback email" });
     }
 };
+
 
 const markDocumentFilled = async (req, res) => {
     try {
@@ -1835,6 +1860,85 @@ const getAllAttachDocument = async (req, res) => {
     }
 };
 
+const getAllFeedbacksFormsByProjectNumber = async (req, res) => {
+    try {
+
+        const { projectNumber } = req.params;
+
+        const feedbacks = await Feedback.find({
+            projectNumber,
+            status: "SUBMITTED"
+        })
+            .sort({ submittedAt: -1 });
+
+        res.json({
+            count: feedbacks.length,
+            data: feedbacks
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Failed to fetch feedbacks" });
+    }
+};
+
+
+export const getFeedbackScoreForGraph = async (req, res) => {
+    try {
+        const feedbacks = await Feedback.find(
+            { status: "SUBMITTED" },
+            { scorePercentage: 1, submittedAt: 1 }
+        );
+
+        const allMonths = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+
+        const MAX_SCORE = 60
+        const monthlyData = {};
+
+        allMonths.forEach(month => {
+            monthlyData[month] = {
+                month,
+                total: 0,
+                "80 or above": 0,
+                "51-79": 0,
+                "35-50": 0,
+                "35 or below": 0,
+            };
+        });
+
+        feedbacks.forEach(fb => {
+            const percentage = Math.round((Number(fb.totalScore) / MAX_SCORE) * 100);
+            if (isNaN(percentage)) return;
+
+
+            const date = new Date(fb.submittedAt);
+            const monthName = allMonths[date.getMonth()];
+            if (!monthlyData[monthName]) return;
+
+            if (percentage >= 80) {
+                monthlyData[monthName]["80 or above"]++;
+            } else if (percentage >= 51) {
+                monthlyData[monthName]["51-79"]++;
+            } else if (percentage >= 35) {
+                monthlyData[monthName]["35-50"]++;
+            } else {
+                monthlyData[monthName]["35 or below"]++;
+            }
+
+            monthlyData[monthName].total++;
+        });
+
+        res.status(200).json({
+            success: true,
+            data: allMonths.map(month => monthlyData[month]),
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Failed to fetch feedback stats" });
+    }
+};
 
 
 
@@ -2010,5 +2114,6 @@ export {
     sendFeedbackFormLink,
     markDocumentFilled,
     getAllDocumentsByProjectNumber,
-    getAllAttachDocument
+    getAllAttachDocument,
+    getAllFeedbacksFormsByProjectNumber
 }

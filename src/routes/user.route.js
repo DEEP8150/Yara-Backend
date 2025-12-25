@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
-import { validateFeedbackToken, validateTempToken, validateTempTokenMiddleware } from "../middlewares/TempFormToken.middleware.js";
+import { validateFeedbackToken, validateFeedbackTokenMiddleware, validateTempToken, validateTempTokenMiddleware } from "../middlewares/TempFormToken.middleware.js";
 import { upload, uploadAttachDoc } from "../middlewares/multer.middleware.js";
 import { getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
 import {
@@ -13,6 +13,8 @@ import {
     markDocumentFilled,
     getAllDocumentsByProjectNumber,
     getAllAttachDocument,
+    getAllFeedbacksFormsByProjectNumber,
+    getFeedbackScoreForGraph,
 } from "../controllers/user.controller.js";
 
 
@@ -67,7 +69,11 @@ userRouter.route("/mark-document-filled").post(validateTempTokenMiddleware, mark
 userRouter.route("/project/:projectNumber/documents").get(verifyJWT, authorizeRoles("admin"), getAllDocumentsByProjectNumber);
 userRouter.route("/purchase/attachDocument").post(verifyJWT, uploadAttachDoc.single("file"), uploadAttachDocument)
 userRouter.route("/:userId/project/:projectNumber/attachDocuments").get(verifyJWT, getAllAttachDocument)
-userRouter.route("/upload-feedback-form").post(upload.single("pdf"), uploadFeedbackForm)
+userRouter.route("/upload-feedback-form").post(validateFeedbackTokenMiddleware, upload.single("pdf"), uploadFeedbackForm)
+userRouter.route("/project/:projectNumber/feedbacks").get(verifyJWT, authorizeRoles("admin"), getAllFeedbacksFormsByProjectNumber);
+
+userRouter.route("/feedback-score-for-graph").get(verifyJWT, authorizeRoles("admin"), getFeedbackScoreForGraph);
+
 
 
 
