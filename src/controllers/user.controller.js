@@ -665,6 +665,48 @@ const updateAssignedProduct = async (req, res, next) => {
     }
 };
 
+const deleteProductFromCustomer = async (req, res, next) => {
+    try {
+        const { customerId, purchaseId } = req.params;
+
+        const user = await User.findById(customerId);
+        if (!user) {
+            return res
+                .status(404)
+                .json(new ApiError(404, "Customer not found", [`No customer with id: ${customerId}`]));
+        }
+
+        const purchase = await Purchase.findOne({
+            _id: purchaseId,
+            user: customerId,
+        });
+
+        if (!purchase) {
+            return res
+                .status(404)
+                .json(
+                    new ApiError(
+                        404,
+                        "Assigned product not found",
+                        ["No purchase found for this customer"]
+                    )
+                );
+        }
+
+        await purchase.deleteOne();
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, "Product removed from customer successfully"));
+
+    } catch (error) {
+        return next(
+            new ApiError(500, "Internal Server Error", [error.message], error.stack)
+        );
+    }
+};
+
+
 const getCustomerDetailsAndPurchases = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -2112,5 +2154,6 @@ export {
     markDocumentFilled,
     getAllDocumentsByProjectNumber,
     getAllAttachDocument,
-    getAllFeedbacksFormsByProjectNumber
+    getAllFeedbacksFormsByProjectNumber,
+    deleteProductFromCustomer
 }

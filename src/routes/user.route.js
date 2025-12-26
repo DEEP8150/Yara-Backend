@@ -15,6 +15,7 @@ import {
     getAllAttachDocument,
     getAllFeedbacksFormsByProjectNumber,
     getFeedbackScoreForGraph,
+    deleteProductFromCustomer,
 } from "../controllers/user.controller.js";
 
 
@@ -29,6 +30,7 @@ userRouter.route("/refresh-AccessToken").post(verifyJWT, refreshAccessToken)
 userRouter.route("/addNewProducts").post(verifyJWT, authorizeRoles("admin"), addNewProduct)
 userRouter.route("/products/:productId").patch(updateNewProduct)
 userRouter.route("/:customerId/Add-products-Tocustomer").post(verifyJWT, authorizeRoles("admin"), addProductToCustomer)
+userRouter.route("/:customerId/purchase/:purchaseId").delete(verifyJWT, authorizeRoles("admin"), deleteProductFromCustomer)
 userRouter.route("/:userId/purchase/:purchaseId").patch(verifyJWT, authorizeRoles("admin"), updateAssignedProduct)
 userRouter.route("/:userId/purchase").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getCustomerDetailsAndPurchases)
 userRouter.route("/raiseTicket").post(verifyJWT, createTicket)
