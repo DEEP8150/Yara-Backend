@@ -264,6 +264,32 @@ export const uploadFeedbackForm = async (req, res) => {
     feedback.totalScore = req.body.totalScore;
     feedback.scorePercentage = req.body.scorePercentage;
     feedback.grade = req.body.grade;
+    feedback.beforeSalesTotal = req.body.beforeSalesTotal;
+    feedback.executionTotal = req.body.executionTotal;
+    feedback.afterSalesTotal = req.body.afterSalesTotal;
+    feedback.qualityTotal = req.body.qualityTotal;
+
+
+    const SECTION_MAX = {
+      beforeSales: 15,
+      execution: 20,
+      afterSales: 15,
+      quality: 10,
+    };
+
+    feedback.sectionPercentages = {
+      beforeSales: Math.round((req.body.beforeSalesTotal / SECTION_MAX.beforeSales) * 100),
+      execution: Math.round((req.body.executionTotal / SECTION_MAX.execution) * 100),
+      afterSales: Math.round((req.body.afterSalesTotal / SECTION_MAX.afterSales) * 100),
+      quality: Math.round((req.body.qualityTotal / SECTION_MAX.quality) * 100),
+    };
+
+    const sectionEntries = Object.entries(feedback.sectionPercentages);
+
+    // sort ascending by percentage
+    sectionEntries.sort((a, b) => a[1] - b[1]);
+
+    feedback.worstSection = sectionEntries[0][0];
 
 
     await feedback.save();
@@ -302,5 +328,80 @@ export const DeleteAttachDocument = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to delete document" });
+  }
+};
+
+
+export const DeleteFeedbackDocument = async (req, res) => {
+  try {
+    const feedbackId = req.params.id;
+
+    const feedback = await Feedback.findById(feedbackId);
+    if (!feedback) return res.status(404).json({ message: "Feedback not found" });
+
+    if (!feedback.s3PdfUrl) return res.status(400).json({ message: "No PDF attached" });
+
+    const urlParts = feedback.s3PdfUrl.split("/");
+    const keyIndex = urlParts.findIndex(part => part.includes(".com")) + 1;
+    const s3Key = urlParts.slice(keyIndex).join("/");
+
+    await s3Client.send(new DeleteObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: s3Key,
+    }));
+
+    await Feedback.findByIdAndDelete(feedbackId);
+
+    res.json({ message: "Feedback deleted successfully" });
+
+  } catch (err) {
+    console.error("Delete feedback error:", err);
+    res.status(500).json({ message: "Failed to delete feedback" });
+  }
+};
+
+export const deletePreOrPostDoc = async (req, res) => {
+  try {
+    const { purchaseId, docId } = req.params;
+
+    console.log("Deleting doc:", { purchaseId, docId });
+
+    const purchase = await Purchase.findById(purchaseId);
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+
+    let doc =
+      purchase.preDocs.id(docId) ||
+      purchase.postDocs.id(docId);
+
+    if (!doc) {
+      return res.status(404).json({ message: "Document not found" });
+    }
+
+    if (doc.s3PdfUrl) {
+      const urlParts = doc.s3PdfUrl.split("/");
+      const keyIndex = urlParts.findIndex(p => p.includes(".com")) + 1;
+      const s3Key = urlParts.slice(keyIndex).join("/");
+
+      await s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: process.env.BUCKET_NAME,
+          Key: s3Key,
+        })
+      );
+    }
+
+    doc.isFilled = false;
+    doc.s3PdfUrl = null;
+    doc.filledByEngineer = null;
+
+    await purchase.save();
+
+    return res.json({ message: "Document deleted successfully" });
+  } catch (err) {
+    console.error("Delete doc error:", err);
+    return res.status(500).json({ message: "Failed to delete document" });
   }
 };

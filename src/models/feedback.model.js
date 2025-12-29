@@ -51,6 +51,33 @@ const feedbackSchema = new mongoose.Schema({
         required: false,
         index: true
     },
+    beforeSalesTotal: {
+        type: Number,
+        default: 0
+    },
+    executionTotal: {
+        type: Number,
+        default: 0
+    },
+    afterSalesTotal: {
+        type: Number,
+        default: 0
+    },
+    qualityTotal: {
+        type: Number,
+        default: 0
+    },
+    sectionPercentages: {
+        beforeSales: Number,
+        execution: Number,
+        afterSales: Number,
+        quality: Number,
+    },
+    worstSection: {
+        type: String,
+    },
+
+
 
 }, { timestamps: true });
 

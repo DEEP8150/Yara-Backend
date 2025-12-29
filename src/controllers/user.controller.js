@@ -820,10 +820,7 @@ const createTicket = async (req, res) => {
 
 const getTickets = async (req, res) => {
     try {
-        const { year } = req.query;
-
-        const start = year ? new Date(`${year}-01-01`) : null;
-        const end = year ? new Date(`${year}-12-31`) : null;
+        const { year, startDate, endDate } = req.query;
 
         let query = {};
 
@@ -831,47 +828,28 @@ const getTickets = async (req, res) => {
             query.customerEmail = req.user.email;
         }
 
-        if (year) {
-            query.createdAt = { $gte: start, $lte: end };
+
+        if (startDate && endDate) {
+            query.createdAt = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+            };
+        }
+
+        else if (year) {
+            const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
+            const startOfNextYear = new Date(`${Number(year) + 1}-01-01T00:00:00.000Z`);
+
+            query.createdAt = {
+                $gte: startOfYear,
+                $lt: startOfNextYear,
+            };
         }
 
         const tickets = await Ticket.find(query).sort({ createdAt: -1 });
 
-        const formatted = tickets.map(t => {
-            const date = new Date(t.createdAt);
-
-            const formattedDate = date.toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            });
-
-            const formattedTime = date.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true
-            });
-
-            let replyDateFormatted = "";
-            if (t.replyDate) {
-                const rDate = new Date(t.replyDate);
-                replyDateFormatted = rDate.toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                });
-            }
-
-            return {
-                ...t._doc,
-                createdAtFormatted: `${formattedTime} ${formattedDate}`,
-                replyDateFormatted
-            };
-        });
-
         return res.status(200).json(
-            new ApiResponse(200, "Tickets fetched successfully", formatted)
+            new ApiResponse(200, "Tickets fetched successfully", tickets)
         );
     } catch (error) {
         console.error("Error in getTickets:", error);
@@ -880,6 +858,7 @@ const getTickets = async (req, res) => {
         );
     }
 };
+
 
 
 const getTicketById = async (req, res) => {
@@ -1831,6 +1810,7 @@ const getAllDocumentsByProjectNumber = async (req, res, next) => {
             { $match: { projectNumber } },
             {
                 $project: {
+                    _id: 1,
                     projectNumber: 1,
                     documents: {
                         $filter: {
@@ -1976,6 +1956,59 @@ export const getFeedbackScoreForGraph = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch feedback stats" });
     }
 };
+
+export const getFeedbackSectionGraph = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        const data = await Feedback.aggregate([
+            {
+                $match: {
+                    status: "SUBMITTED",
+                    submittedAt: { $gte: start, $lte: end },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    beforeSalesAvg: { $avg: "$sectionPercentages.beforeSales" },
+                    executionAvg: { $avg: "$sectionPercentages.execution" },
+                    afterSalesAvg: { $avg: "$sectionPercentages.afterSales" },
+                    qualityAvg: { $avg: "$sectionPercentages.quality" },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    beforeSales: { $round: ["$beforeSalesAvg", 1] },
+                    execution: { $round: ["$executionAvg", 1] },
+                    afterSales: { $round: ["$afterSalesAvg", 1] },
+                    quality: { $round: ["$qualityAvg", 1] },
+                },
+            },
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: data[0] || {
+                beforeSales: 0,
+                execution: 0,
+                afterSales: 0,
+                quality: 0,
+            },
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to fetch section analytics" });
+    }
+};
+
+
+
+
 
 
 

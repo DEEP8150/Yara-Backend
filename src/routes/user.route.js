@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
 import { validateFeedbackToken, validateFeedbackTokenMiddleware, validateTempToken, validateTempTokenMiddleware } from "../middlewares/TempFormToken.middleware.js";
 import { upload, uploadAttachDoc } from "../middlewares/multer.middleware.js";
-import { DeleteAttachDocument, getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
+import { DeleteAttachDocument, DeleteFeedbackDocument, deletePreOrPostDoc, getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
 import {
     addNewProduct, addProductToCustomer, changeCurrentPassword, createTicket, getCustomerDetailsAndPurchases, getTickets,
     getTicketById, login, logout, refreshAccessToken, registerCustomerAndEngineer, updateAssignedProduct, getAllCustomers,
@@ -16,6 +16,7 @@ import {
     getAllFeedbacksFormsByProjectNumber,
     getFeedbackScoreForGraph,
     deleteProductFromCustomer,
+    getFeedbackSectionGraph,
 } from "../controllers/user.controller.js";
 
 
@@ -72,10 +73,14 @@ userRouter.route("/project/:projectNumber/documents").get(verifyJWT, authorizeRo
 userRouter.route("/purchase/attachDocument").post(verifyJWT, uploadAttachDoc.single("file"), uploadAttachDocument)
 userRouter.route("/:userId/project/:projectNumber/attachDocuments").get(verifyJWT, getAllAttachDocument)
 userRouter.route("/upload-feedback-form").post(validateFeedbackTokenMiddleware, upload.single("pdf"), uploadFeedbackForm)
+userRouter.route("/delete-feedback-document/:id").delete(verifyJWT, authorizeRoles("admin"), DeleteFeedbackDocument)
 userRouter.route("/project/:projectNumber/feedbacks").get(verifyJWT, authorizeRoles("admin"), getAllFeedbacksFormsByProjectNumber);
 userRouter.route("/delete-AttachDocument/:id").delete(verifyJWT, authorizeRoles("admin"), DeleteAttachDocument)
 
+userRouter.route("/delete-pre-post-doc/:purchaseId/:docId").delete(verifyJWT, authorizeRoles("admin"), deletePreOrPostDoc);
+
 userRouter.route("/feedback-score-for-graph").get(verifyJWT, authorizeRoles("admin"), getFeedbackScoreForGraph);
+userRouter.route("/feedback-section-graph").get(verifyJWT, authorizeRoles("admin"), getFeedbackSectionGraph);
 
 
 
