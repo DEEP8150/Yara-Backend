@@ -11,6 +11,9 @@ import bcrypt from 'bcrypt'
 import { TempFormToken } from "../models/TempFormToken.model.js";
 import jwt from "jsonwebtoken";
 import { generatePresignedUrl, getObjectUrl } from "../utils/S3Client.js";
+import { Feedback } from "../models/feedback.model.js";
+import { randomUUID } from "crypto";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 // import { generatePresignedUrl } from "../utils/"
 
 
@@ -662,6 +665,48 @@ const updateAssignedProduct = async (req, res, next) => {
     }
 };
 
+const deleteProductFromCustomer = async (req, res, next) => {
+    try {
+        const { customerId, purchaseId } = req.params;
+
+        const user = await User.findById(customerId);
+        if (!user) {
+            return res
+                .status(404)
+                .json(new ApiError(404, "Customer not found", [`No customer with id: ${customerId}`]));
+        }
+
+        const purchase = await Purchase.findOne({
+            _id: purchaseId,
+            user: customerId,
+        });
+
+        if (!purchase) {
+            return res
+                .status(404)
+                .json(
+                    new ApiError(
+                        404,
+                        "Assigned product not found",
+                        ["No purchase found for this customer"]
+                    )
+                );
+        }
+
+        await purchase.deleteOne();
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, "Product removed from customer successfully"));
+
+    } catch (error) {
+        return next(
+            new ApiError(500, "Internal Server Error", [error.message], error.stack)
+        );
+    }
+};
+
+
 const getCustomerDetailsAndPurchases = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -775,63 +820,34 @@ const createTicket = async (req, res) => {
 
 const getTickets = async (req, res) => {
     try {
-        let tickets;
+        const { year, startDate, endDate } = req.query;
+        let query = {};
 
         if (req.user.role === "customer") {
-            tickets = await Ticket.find({ customerEmail: req.user.email })
-                .sort({ createdAt: -1 });
-        } else {
-            tickets = await Ticket.find().sort({ createdAt: -1 });
+            query.customerEmail = req.user.email;
         }
 
-        const formatted = tickets.map(t => {
-            const date = new Date(t.createdAt);
-
-            const formattedDate = date.toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            });
-
-            const formattedTime = date.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true
-            });
-
-            let replyDateFormatted = "";
-            if (t.replyDate) {
-                const rDate = new Date(t.replyDate);
-
-                const rFormattedDate = rDate.toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                });
-
-                // const rFormattedTime = rDate.toLocaleTimeString("en-US", {
-                //     hour: "2-digit",
-                //     minute: "2-digit",
-                //     second: "2-digit",
-                //     hour12: true
-                // });
-
-                replyDateFormatted = `${rFormattedDate}`;
-            }
-
-            return {
-                ...t._doc,
-                createdAtFormatted: `${formattedTime} ${formattedDate}`,
-                replyDateFormatted
+        if (startDate && endDate) {
+            query.createdAt = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
             };
-        });
+        }
+        else if (year) {
+            const start = new Date(Number(year), 0, 1);
+            const end = new Date(Number(year) + 1, 0, 1);
 
+            query.createdAt = {
+                $gte: start,
+                $lt: end,
+            };
+        }
+
+        const tickets = await Ticket.find(query).sort({ createdAt: -1 });
 
         return res.status(200).json(
-            new ApiResponse(200, "Tickets fetched successfully", formatted)
+            new ApiResponse(200, "Tickets fetched successfully", tickets)
         );
-
     } catch (error) {
         console.error("Error in getTickets:", error);
         return res.status(500).json(
@@ -839,6 +855,11 @@ const getTickets = async (req, res) => {
         );
     }
 };
+
+
+
+
+
 
 const getTicketById = async (req, res) => {
     try {
@@ -1655,7 +1676,9 @@ const sendFeedbackFormLink = async (req, res) => {
             return res.status(400).json({ message: "Project number is required" });
         }
 
-        const purchase = await Purchase.findOne({ projectNumber }).populate("user");
+        const purchase = await Purchase
+            .findOne({ projectNumber })
+            .populate("user");
 
         if (!purchase || !purchase.user) {
             return res.status(404).json({ message: "Customer not found for project" });
@@ -1669,8 +1692,23 @@ const sendFeedbackFormLink = async (req, res) => {
             address2: customer.address_2 || ""
         };
 
+
+        const tokenId = randomUUID();
+
+        const fileName = `Feedback.pdf`;
+
+        const feedback = await Feedback.create({
+            purchaseId: purchase._id,
+            projectNumber,
+            tokenId,
+            status: "PENDING",
+            fileName,
+            submittedAt: null,
+        });
+
         const feedbackToken = jwt.sign(
             {
+                tokenId,
                 userId: customer._id,
                 purchaseId: purchase._id,
                 projectNumber,
@@ -1678,9 +1716,10 @@ const sendFeedbackFormLink = async (req, res) => {
                 customerOrg,
                 customerAddress
             },
-            process.env.FEEDBACK_TOKEN_SECRET,
-            // { expiresIn: "7d" }
+            process.env.FEEDBACK_TOKEN_SECRET
         );
+
+        console.log("feedbackToken", feedbackToken)
 
         const feedbackUrl =
             `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
@@ -1701,6 +1740,7 @@ const sendFeedbackFormLink = async (req, res) => {
     }
 };
 
+
 const markDocumentFilled = async (req, res) => {
     try {
         const { projectNumber, formName } = req.user;
@@ -1719,11 +1759,13 @@ const markDocumentFilled = async (req, res) => {
 
         const docsKey = FORM_GROUP_MAP[formName];
 
+        console.log("docsKey", docsKey)
+
         const result = await Purchase.updateOne(
             {
                 projectNumber,
-                [`${docsKey}.formKey`]: formName,
-                [`${docsKey}.isFilled`]: false
+                [`${docsKey}.$.formKey`]: formName,
+                [`${docsKey}.$.isFilled`]: false
             },
             {
                 $set: {
@@ -1758,6 +1800,324 @@ const markDocumentFilled = async (req, res) => {
         });
     }
 };
+
+
+const getAllDocumentsByProjectNumber = async (req, res, next) => {
+    try {
+        const { projectNumber } = req.params;
+
+        const result = await Purchase.aggregate([
+            { $match: { projectNumber } },
+            {
+                $project: {
+                    _id: 1,
+                    projectNumber: 1,
+                    documents: {
+                        $filter: {
+                            input: {
+                                $concatArrays: [
+                                    {
+                                        $map: {
+                                            input: "$preDocs",
+                                            as: "doc",
+                                            in: { $mergeObjects: ["$$doc", { type: "pre" }] }
+                                        }
+                                    },
+                                    {
+                                        $map: {
+                                            input: "$postDocs",
+                                            as: "doc",
+                                            in: { $mergeObjects: ["$$doc", { type: "post" }] }
+                                        }
+                                    }
+                                ]
+                            },
+                            as: "doc",
+                            cond: { $ne: ["$$doc.s3PdfUrl", null] }
+                        }
+                    }
+                }
+            }
+        ]);
+
+        if (!result.length) {
+            return next(
+                new ApiError(
+                    404,
+                    "Project not found",
+                    [`No documents found for project ${projectNumber}`]
+                )
+            );
+        }
+
+        return res.status(200).json(
+            new ApiResponse(200, result[0], "Documents fetched successfully")
+        );
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getAllAttachDocument = async (req, res) => {
+
+    try {
+        const { userId, projectNumber } = req.params;
+
+        // Find purchase by user and projectNumber
+        const purchase = await Purchase.findOne({ user: userId, projectNumber });
+
+        if (!purchase) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+
+        res.status(200).json({ attachDocuments: purchase.attachDocuments || [] });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to fetch attach documents" });
+    }
+};
+
+const getAllFeedbacksFormsByProjectNumber = async (req, res) => {
+    try {
+
+        const { projectNumber } = req.params;
+
+        const feedbacks = await Feedback.find({
+            projectNumber,
+            status: "SUBMITTED"
+        })
+            .sort({ submittedAt: -1 });
+
+        res.json({
+            count: feedbacks.length,
+            data: feedbacks
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Failed to fetch feedbacks" });
+    }
+};
+
+
+export const getFeedbackScoreForGraph = async (req, res) => {
+    try {
+        const { year } = req.query;
+
+        const start = new Date(`${year}-01-01`);
+        const end = new Date(`${year}-12-31`);
+
+        const feedbacks = await Feedback.find(
+            {
+                status: "SUBMITTED",
+                submittedAt: { $gte: start, $lte: end },
+            },
+            { scorePercentage: 1, submittedAt: 1 }
+        );
+
+        const allMonths = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+
+        const monthlyData = {};
+        allMonths.forEach(month => {
+            monthlyData[month] = {
+                month,
+                total: 0,
+                "80 or above": 0,
+                "51-79": 0,
+                "35-50": 0,
+                "35 or below": 0,
+            };
+        });
+
+        feedbacks.forEach(fb => {
+            const percentage = Number(fb.scorePercentage);
+            if (isNaN(percentage)) return;
+
+            const date = new Date(fb.submittedAt);
+            const monthName = allMonths[date.getMonth()];
+
+            if (percentage >= 80) monthlyData[monthName]["80 or above"]++;
+            else if (percentage >= 51) monthlyData[monthName]["51-79"]++;
+            else if (percentage >= 35) monthlyData[monthName]["35-50"]++;
+            else monthlyData[monthName]["35 or below"]++;
+
+            monthlyData[monthName].total++;
+        });
+
+        res.status(200).json({
+            success: true,
+            data: allMonths.map(month => monthlyData[month]),
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Failed to fetch feedback stats" });
+    }
+};
+
+export const getFeedbackSectionGraph = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        const query = { status: "SUBMITTED" };
+
+        if (startDate && endDate) {
+            query.submittedAt = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+            };
+        }
+
+        const feedbacks = await Feedback.find(query);
+
+        if (!feedbacks.length) {
+            return res.status(404).json({ message: "No feedbacks found" });
+        }
+
+        const SECTION_CONFIG = {
+            beforeSales: 15,
+            execution: 20,
+            afterSales: 15,
+            quality: 10,
+        };
+
+        const numberOfUsers = feedbacks.length;
+
+        const aggregated = Object.entries(SECTION_CONFIG).map(([section, maxPerUser]) => {
+            const totalScore = feedbacks.reduce(
+                (acc, f) => acc + (f[`${section}Total`] || 0),
+                0
+            );
+
+            return {
+                section,
+                label:
+                    section === "beforeSales"
+                        ? "Before Sales"
+                        : section === "execution"
+                            ? "Execution"
+                            : section === "afterSales"
+                                ? "After Sales"
+                                : "Quality",
+                totalScore,
+            };
+        });
+
+        res.json({
+            numberOfUsers,
+            aggregated,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const getTicketsForGraph = async (req, res) => {
+    try {
+        const { year } = req.query;
+
+        const start = new Date(`${year}-01-01`);
+        const end = new Date(`${year}-12-31`);
+
+        const tickets = await Ticket.find(
+            {
+                createdAt: { $gte: start, $lte: end },
+            },
+            { productName: 1, createdAt: 1 }
+        );
+
+        const allMonths = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December",
+        ];
+
+        const monthlyData = {};
+        allMonths.forEach(month => {
+            monthlyData[month] = { month, total: 0 };
+        });
+
+        tickets.forEach(ticket => {
+            const monthName = allMonths[new Date(ticket.createdAt).getMonth()];
+            monthlyData[monthName][ticket.productName] =
+                (monthlyData[monthName][ticket.productName] || 0) + 1;
+            monthlyData[monthName].total += 1;
+        });
+
+        res.status(200).json({
+            success: true,
+            data: allMonths.map(month => monthlyData[month]),
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to fetch tickets graph" });
+    }
+};
+
+
+
+
+
+// export const getFeedbackSectionGraph = async (req, res) => {
+//     try {
+//         const { startDate, endDate } = req.query;
+
+//         const start = new Date(startDate);
+//         const end = new Date(endDate);
+
+//         const data = await Feedback.aggregate([
+//             {
+//                 $match: {
+//                     status: "SUBMITTED",
+//                     submittedAt: { $gte: start, $lte: end },
+//                 },
+//             },
+//             {
+//                 $group: {
+//                     _id: null,
+//                     beforeSalesAvg: { $avg: "$sectionPercentages.beforeSales" },
+//                     executionAvg: { $avg: "$sectionPercentages.execution" },
+//                     afterSalesAvg: { $avg: "$sectionPercentages.afterSales" },
+//                     qualityAvg: { $avg: "$sectionPercentages.quality" },
+//                 },
+//             },
+//             {
+//                 $project: {
+//                     _id: 0,
+//                     beforeSales: { $round: ["$beforeSalesAvg", 1] },
+//                     execution: { $round: ["$executionAvg", 1] },
+//                     afterSales: { $round: ["$afterSalesAvg", 1] },
+//                     quality: { $round: ["$qualityAvg", 1] },
+//                 },
+//             },
+//         ]);
+
+//         res.status(200).json({
+//             success: true,
+//             data: data[0] || {
+//                 beforeSales: 0,
+//                 execution: 0,
+//                 afterSales: 0,
+//                 quality: 0,
+//             },
+//         });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ message: "Failed to fetch section analytics" });
+//     }
+// };
+
+
+
+
+
+
+
+
+
 
 // const sendFeedbackFormLink = async (req, res) => {
 //     try {
@@ -1928,5 +2288,9 @@ export {
     getSignedImageUrl,
     uploadSignature,
     sendFeedbackFormLink,
-    markDocumentFilled
+    markDocumentFilled,
+    getAllDocumentsByProjectNumber,
+    getAllAttachDocument,
+    getAllFeedbacksFormsByProjectNumber,
+    deleteProductFromCustomer
 }

@@ -26,6 +26,12 @@ const purchaseSchema = new mongoose.Schema(
             type: String,
             trim: true
         },
+        attachDocuments: [
+            {
+                url: String,
+                uploadedAt: Date,
+            }
+        ],
         preDocs: {
             type: [
                 {
@@ -33,7 +39,7 @@ const purchaseSchema = new mongoose.Schema(
                     url: String,
                     formKey: String,
                     isFilled: { type: Boolean, default: false },
-                    s3PdfKey: { type: String, default: null },
+                    s3PdfUrl: { type: String, default: null },
                     filledByEngineer: {
                         type: mongoose.Schema.Types.ObjectId,
                         ref: "User",
@@ -53,7 +59,7 @@ const purchaseSchema = new mongoose.Schema(
                     title: "Annexure-6",
                     formKey: "annexure-6",
                     isFilled: false,
-                    s3PdfKey: null,
+                    s3PdfUrl: null,
                     filledByEngineer: null
                 },
                 {
@@ -105,28 +111,8 @@ const purchaseSchema = new mongoose.Schema(
                 }
             ]
         },
-        feedbackForm: {
-            type: [
-                {
-                    title: String,
-                    url: String,
-                    isFilled: { type: Boolean, default: false },
-                    s3PdfUrl: { type: String, default: null },
-                    filledByUser: {
-                        type: mongoose.Schema.Types.ObjectId,
-                        ref: "User",
-                        default: null
-                    }
-                }
-            ],
-            default: [
-                {
-                    title: "Feedback Form",
-                    isFilled: false,
-                    s3PdfUrl: null
-                }
-            ]
-        }
+
+
     }, { timestamps: true })
 
 export const Purchase = mongoose.model("Purchase", purchaseSchema)
