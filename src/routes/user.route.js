@@ -17,6 +17,7 @@ import {
     getFeedbackScoreForGraph,
     deleteProductFromCustomer,
     getFeedbackSectionGraph,
+    getTicketsForGraph,
 } from "../controllers/user.controller.js";
 
 
@@ -81,6 +82,7 @@ userRouter.route("/delete-pre-post-doc/:purchaseId/:docId").delete(verifyJWT, au
 
 userRouter.route("/feedback-score-for-graph").get(verifyJWT, authorizeRoles("admin"), getFeedbackScoreForGraph);
 userRouter.route("/feedback-section-graph").get(verifyJWT, authorizeRoles("admin"), getFeedbackSectionGraph);
+userRouter.route("/tickets-for-graph").get(verifyJWT, authorizeRoles("admin"), getTicketsForGraph);
 
 
 

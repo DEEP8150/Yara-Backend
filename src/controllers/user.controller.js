@@ -821,13 +821,11 @@ const createTicket = async (req, res) => {
 const getTickets = async (req, res) => {
     try {
         const { year, startDate, endDate } = req.query;
-
         let query = {};
 
         if (req.user.role === "customer") {
             query.customerEmail = req.user.email;
         }
-
 
         if (startDate && endDate) {
             query.createdAt = {
@@ -835,14 +833,13 @@ const getTickets = async (req, res) => {
                 $lte: new Date(endDate),
             };
         }
-
         else if (year) {
-            const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
-            const startOfNextYear = new Date(`${Number(year) + 1}-01-01T00:00:00.000Z`);
+            const start = new Date(Number(year), 0, 1);
+            const end = new Date(Number(year) + 1, 0, 1);
 
             query.createdAt = {
-                $gte: startOfYear,
-                $lt: startOfNextYear,
+                $gte: start,
+                $lt: end,
             };
         }
 
@@ -858,6 +855,9 @@ const getTickets = async (req, res) => {
         );
     }
 };
+
+
+
 
 
 
@@ -1961,50 +1961,154 @@ export const getFeedbackSectionGraph = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const query = { status: "SUBMITTED" };
 
-        const data = await Feedback.aggregate([
+        if (startDate && endDate) {
+            query.submittedAt = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+            };
+        }
+
+        const feedbacks = await Feedback.find(query);
+
+        if (!feedbacks.length) {
+            return res.status(404).json({ message: "No feedbacks found" });
+        }
+
+        const SECTION_CONFIG = {
+            beforeSales: 15,
+            execution: 20,
+            afterSales: 15,
+            quality: 10,
+        };
+
+        const numberOfUsers = feedbacks.length;
+
+        const aggregated = Object.entries(SECTION_CONFIG).map(([section, maxPerUser]) => {
+            const totalScore = feedbacks.reduce(
+                (acc, f) => acc + (f[`${section}Total`] || 0),
+                0
+            );
+
+            return {
+                section,
+                label:
+                    section === "beforeSales"
+                        ? "Before Sales"
+                        : section === "execution"
+                            ? "Execution"
+                            : section === "afterSales"
+                                ? "After Sales"
+                                : "Quality",
+                totalScore,
+            };
+        });
+
+        res.json({
+            numberOfUsers,
+            aggregated,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const getTicketsForGraph = async (req, res) => {
+    try {
+        const { year } = req.query;
+
+        const start = new Date(`${year}-01-01`);
+        const end = new Date(`${year}-12-31`);
+
+        const tickets = await Ticket.find(
             {
-                $match: {
-                    status: "SUBMITTED",
-                    submittedAt: { $gte: start, $lte: end },
-                },
+                createdAt: { $gte: start, $lte: end },
             },
-            {
-                $group: {
-                    _id: null,
-                    beforeSalesAvg: { $avg: "$sectionPercentages.beforeSales" },
-                    executionAvg: { $avg: "$sectionPercentages.execution" },
-                    afterSalesAvg: { $avg: "$sectionPercentages.afterSales" },
-                    qualityAvg: { $avg: "$sectionPercentages.quality" },
-                },
-            },
-            {
-                $project: {
-                    _id: 0,
-                    beforeSales: { $round: ["$beforeSalesAvg", 1] },
-                    execution: { $round: ["$executionAvg", 1] },
-                    afterSales: { $round: ["$afterSalesAvg", 1] },
-                    quality: { $round: ["$qualityAvg", 1] },
-                },
-            },
-        ]);
+            { productName: 1, createdAt: 1 }
+        );
+
+        const allMonths = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December",
+        ];
+
+        const monthlyData = {};
+        allMonths.forEach(month => {
+            monthlyData[month] = { month, total: 0 };
+        });
+
+        tickets.forEach(ticket => {
+            const monthName = allMonths[new Date(ticket.createdAt).getMonth()];
+            monthlyData[monthName][ticket.productName] =
+                (monthlyData[monthName][ticket.productName] || 0) + 1;
+            monthlyData[monthName].total += 1;
+        });
 
         res.status(200).json({
             success: true,
-            data: data[0] || {
-                beforeSales: 0,
-                execution: 0,
-                afterSales: 0,
-                quality: 0,
-            },
+            data: allMonths.map(month => monthlyData[month]),
         });
+
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Failed to fetch section analytics" });
+        res.status(500).json({ message: "Failed to fetch tickets graph" });
     }
 };
+
+
+
+
+
+// export const getFeedbackSectionGraph = async (req, res) => {
+//     try {
+//         const { startDate, endDate } = req.query;
+
+//         const start = new Date(startDate);
+//         const end = new Date(endDate);
+
+//         const data = await Feedback.aggregate([
+//             {
+//                 $match: {
+//                     status: "SUBMITTED",
+//                     submittedAt: { $gte: start, $lte: end },
+//                 },
+//             },
+//             {
+//                 $group: {
+//                     _id: null,
+//                     beforeSalesAvg: { $avg: "$sectionPercentages.beforeSales" },
+//                     executionAvg: { $avg: "$sectionPercentages.execution" },
+//                     afterSalesAvg: { $avg: "$sectionPercentages.afterSales" },
+//                     qualityAvg: { $avg: "$sectionPercentages.quality" },
+//                 },
+//             },
+//             {
+//                 $project: {
+//                     _id: 0,
+//                     beforeSales: { $round: ["$beforeSalesAvg", 1] },
+//                     execution: { $round: ["$executionAvg", 1] },
+//                     afterSales: { $round: ["$afterSalesAvg", 1] },
+//                     quality: { $round: ["$qualityAvg", 1] },
+//                 },
+//             },
+//         ]);
+
+//         res.status(200).json({
+//             success: true,
+//             data: data[0] || {
+//                 beforeSales: 0,
+//                 execution: 0,
+//                 afterSales: 0,
+//                 quality: 0,
+//             },
+//         });
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ message: "Failed to fetch section analytics" });
+//     }
+// };
 
 
 
