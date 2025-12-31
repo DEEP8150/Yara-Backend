@@ -364,8 +364,6 @@ export const deletePreOrPostDoc = async (req, res) => {
   try {
     const { purchaseId, docId } = req.params;
 
-    console.log("Deleting doc:", { purchaseId, docId });
-
     const purchase = await Purchase.findById(purchaseId);
     if (!purchase) {
       return res.status(404).json({ message: "Purchase not found" });

@@ -15,13 +15,11 @@ const verifyJWT = async (req, res, next) => {
         const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
         const user = await User.findById(decodeToken?._id).select("-password -refreshToken");
-        // console.log("req.user", user)
 
         if (!user) {
-            return res.status(401).json({ message: "user not found" })
+            return res.status(401).json({ message: "User does not exist" })
         }
 
-        console.log("req.user", user)
         req.user = user
         next();
 
