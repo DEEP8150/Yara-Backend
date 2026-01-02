@@ -89,7 +89,7 @@ const purchaseSchema = new mongoose.Schema(
             ],
             default: [
                 {
-                    title: "Cold Commissioning Activity list Protocol",
+                    title: "Cold Commissioning Activity List Protocol",
                     formKey: "cold-commissioning",
                     isFilled: false,
                     s3PdfUrl: null,
@@ -103,7 +103,7 @@ const purchaseSchema = new mongoose.Schema(
                     filledByEngineer: null
                 },
                 {
-                    title: "ready to start protocol",
+                    title: "Ready To Start Protocol",
                     formKey: "ready-to-startup",
                     isFilled: false,
                     s3PdfUrl: null,
