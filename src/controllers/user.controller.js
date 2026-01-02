@@ -534,6 +534,20 @@ const addNewProduct = async (req, res, next) => {
     }
 };
 
+export const deleteProduct = async (req, res, next) => {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+        return next(new ApiError(404, "Product not found"));
+    }
+
+    await Product.findByIdAndDelete(productId);
+
+    return res.status(200).json(
+        new ApiResponse(200, null, "Product deleted successfully")
+    );
+};
 
 const addProductToCustomer = async (req, res, next) => {
     try {
@@ -770,9 +784,23 @@ const createTicket = async (req, res) => {
             user: req.user?._id || null
         });
 
+        console.log("Ticket created:", ticket);
         await sendTicketRaisedEmail(ticket.customerEmail, ticket);
+        console.log("Email sent to customer");
 
-        await sendTicketRaisedEmail(process.env.EMAIL_USER, ticket);
+        const admins = await User.find(
+            { role: "admin" },
+            { email: 1 }
+        );
+
+        console.log("Admins found:", admins);
+
+        await Promise.all(
+            admins.map(admin =>
+                sendTicketRaisedEmail(admin.email, ticket)
+            )
+        );
+        console.log("Email sent to admins");
 
         return res.status(201).json(
             new ApiResponse(201, "Ticket created successfully", ticket)
@@ -786,21 +814,6 @@ const createTicket = async (req, res) => {
     }
 };
 
-// const getTickets = async (req, res) => {
-//     try {
-//         const tickets = await Ticket.find().sort({ createdAt: -1 });
-
-//         return res.status(200).json(
-//             new ApiResponse(200, "Tickets fetched successfully",   tickets )
-//         );
-
-//     } catch (error) {
-//         console.error("Error in getTickets:", error);
-//         return res.status(500).json(
-//             new ApiError(500, "Internal Server Error", [error.message])
-//         );
-//     }
-// };
 
 const getTickets = async (req, res) => {
     try {
@@ -1180,49 +1193,6 @@ const getUpdatedProduct = async (req, res) => {
 };
 
 
-// const updateEngineer = async (req, res, next) => {
-//     try {
-//         const { id } = req.params;
-//         const updates = req.body;
-
-//         delete updates.role;
-
-//         if (updates.email) {
-//             const existingUser = await User.findOne({
-//                 email: updates.email,
-//                 _id: { $ne: id }
-//             });
-
-//             if (existingUser) {
-//                 return res
-//                     .status(400)
-//                     .json(new ApiError(400, "Another engineer with this email already exists"));
-//             }
-//         }
-
-//         const updatedEngineer = await User.findByIdAndUpdate(
-//             id,
-//             { $set: updates },
-//             { new: true, runValidators: true, select: "-password" }
-//         );
-
-//         if (!updatedEngineer) {
-//             return res
-//                 .status(404)
-//                 .json(new ApiError(404, "Engineer not found", [`No engineer found with id: ${id}`]));
-//         }
-
-//         return res
-//             .status(200)
-//             .json(new ApiResponse(200, "Engineer updated successfully", updatedEngineer));
-
-//     } catch (error) {
-//         return next(
-//             new ApiError(500, "Internal Server Error", [error.message], error.stack)
-//         );
-//     }
-// };
-
 const updateEngineer = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -1293,6 +1263,28 @@ const getEngineerById = async (req, res, next) => {
         );
     }
 };
+
+export const deleteUserByAdmin = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return next(new ApiError(404, "User not found"));
+        }
+
+        await User.findByIdAndDelete(userId);
+
+        return res.status(200).json(
+            new ApiResponse(200, "User deleted successfully")
+        );
+    } catch (error) {
+        return next(
+            new ApiError(500, "Error deleting user", [error.message])
+        );
+    }
+}
 
 const fileUpload = async (req, res) => {
     try {
@@ -1372,7 +1364,6 @@ const getSignedImageUrl = async (req, res) => {
     }
 };
 
-//for unity:
 // const getAllPurchases = async (req, res) => {
 //     try {
 //         const purchases = await Purchase.find()
@@ -1949,34 +1940,41 @@ export const getFeedbackSectionGraph = async (req, res) => {
             return res.status(404).json({ message: "No feedbacks found" });
         }
 
-        const SECTION_CONFIG = {
-            beforeSales: 15,
-            execution: 20,
-            afterSales: 15,
-            quality: 10,
-        };
-
         const numberOfUsers = feedbacks.length;
 
-        const aggregated = Object.entries(SECTION_CONFIG).map(([section, maxPerUser]) => {
-            const totalScore = feedbacks.reduce(
-                (acc, f) => acc + (f[`${section}Total`] || 0),
-                0
-            );
+        const SECTION_CONFIG = {
+            beforeSales: { max: 15, label: "Before Sales" },
+            execution: { max: 20, label: "Execution" },
+            afterSales: { max: 15, label: "After Sales" },
+            quality: { max: 10, label: "Quality" },
+        };
 
-            return {
-                section,
-                label:
-                    section === "beforeSales"
-                        ? "Before Sales"
-                        : section === "execution"
-                            ? "Execution"
-                            : section === "afterSales"
-                                ? "After Sales"
-                                : "Quality",
-                totalScore,
-            };
-        });
+        const aggregated = Object.entries(SECTION_CONFIG).map(
+            ([section, config]) => {
+                // 1️⃣ Sum of scores for this section
+                const totalScore = feedbacks.reduce((sum, f) => {
+                    return sum + (f[`${section}Total`] || 0);
+                }, 0);
+
+                // 2️⃣ Average score
+                const avgScore = Number(
+                    (totalScore / numberOfUsers).toFixed(2)
+                );
+
+                // 3️⃣ Average percentage
+                const avgPercentage = Number(
+                    ((avgScore / config.max) * 100).toFixed(2)
+                );
+
+                return {
+                    section,
+                    label: config.label,
+                    maxTotal: config.max,
+                    avgScore,
+                    avgPercentage,
+                };
+            }
+        );
 
         res.json({
             numberOfUsers,
@@ -1987,6 +1985,7 @@ export const getFeedbackSectionGraph = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
 
 export const getTicketsForGraph = async (req, res) => {
     try {
