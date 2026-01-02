@@ -40,7 +40,6 @@ const generateAccessAndRefreshToken = async (userId) => {
         return { accessToken, refreshToken }
 
     } catch (error) {
-        console.log("Error while generateing access and refresh token", error)
         throw new Error("Error while generating access and refresh token");
     }
 }
@@ -48,7 +47,6 @@ const generateAccessAndRefreshToken = async (userId) => {
 const registerCustomer = async (req, res, next) => {
     try {
         const userDetails = req.body
-        // console.log("user Details", email, firstName)
 
         if ([userDetails.organization, userDetails.email].some((field) => {
             return field?.trim() === ""
@@ -57,8 +55,6 @@ const registerCustomer = async (req, res, next) => {
         }
 
         const existingUser = await User.findOne({ email: userDetails.email })
-
-        console.log("Organization is already Exist with this email", existingUser)
 
         if (existingUser) {
             return res.status(400).json({ message: "Organization is already exist with this email", existingUser })
@@ -253,10 +249,8 @@ const registerCustomerAndEngineer = async (req, res, next) => {
 const login = async (req, res, next) => {
 
     try {
-        console.log("user details", req.body)
         const { email, password } = req.body
 
-        console.log("user details", email, password)
         if (!email || !password) {
             return res.status(400).json({ message: "All fields are required" })
         }
@@ -264,7 +258,6 @@ const login = async (req, res, next) => {
 
         const user = await User.findOne({ email })
 
-        console.log("users", user)
         if (!user) {
             return res.status(400).json({ message: "user does not exist" })
         }
@@ -386,7 +379,6 @@ const resetNewPassword = async (req, res) => {
             resetPasswordExpiry: { $gt: Date.now() },
         });
 
-        console.log("reset user", user);
 
         if (!user) {
             return res.status(400).json({ message: "Invalid or expired token" });
@@ -542,15 +534,26 @@ const addNewProduct = async (req, res, next) => {
     }
 };
 
+export const deleteProduct = async (req, res, next) => {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+        return next(new ApiError(404, "Product not found"));
+    }
+
+    await Product.findByIdAndDelete(productId);
+
+    return res.status(200).json(
+        new ApiResponse(200, null, "Product deleted successfully")
+    );
+};
 
 const addProductToCustomer = async (req, res, next) => {
     try {
         const { projectNumber, productId, productSerialNumber, date } = req.body
-        console.log("body 1 :", "number:", projectNumber, "prodID:", productId, "sr.no;", productSerialNumber, "data:", date)
 
         const { customerId } = req.params;
-
-        console.log("userId", customerId)
 
         if (!projectNumber || !productId || !date) {
             return res
@@ -609,7 +612,6 @@ const updateAssignedProduct = async (req, res, next) => {
         const { purchaseId } = req.params;
         const { projectNumber, productId, productSerialNumber, date } = req.body;
 
-        console.log("purchase dd:", "id:", purchaseId, productSerialNumber, date)
 
         const purchase = await Purchase.findById(purchaseId);
         if (!purchase) {
@@ -617,7 +619,6 @@ const updateAssignedProduct = async (req, res, next) => {
                 .status(404)
                 .json(new ApiError(404, "Purchase not found", [`No purchase with id: ${purchaseId}`]));
         }
-        console.log("update details", "purchaseId", purchaseId, "body:", projectNumber, productId, productSerialNumber, date)
 
         if (projectNumber && projectNumber !== purchase.projectNumber) {
             const exists = await Purchase.findOne({ projectNumber });
@@ -646,8 +647,6 @@ const updateAssignedProduct = async (req, res, next) => {
         if (date) {
             purchase.date = new Date(date);
         }
-
-        console.log("update purchase detail: ", purchase, productId, productSerialNumber, date)
         await purchase.save();
 
         return res.status(200).json(
@@ -736,7 +735,6 @@ const createTicket = async (req, res) => {
                 ])
             );
         }
-        // console.log("body2:",productName, projectNumber, organization, issueDetails ,issueType)
 
         const organizationExists = await User.findOne({ organization });
 
@@ -786,9 +784,23 @@ const createTicket = async (req, res) => {
             user: req.user?._id || null
         });
 
+        console.log("Ticket created:", ticket);
         await sendTicketRaisedEmail(ticket.customerEmail, ticket);
+        console.log("Email sent to customer");
 
-        await sendTicketRaisedEmail(process.env.EMAIL_USER, ticket);
+        const admins = await User.find(
+            { role: "admin" },
+            { email: 1 }
+        );
+
+        console.log("Admins found:", admins);
+
+        await Promise.all(
+            admins.map(admin =>
+                sendTicketRaisedEmail(admin.email, ticket)
+            )
+        );
+        console.log("Email sent to admins");
 
         return res.status(201).json(
             new ApiResponse(201, "Ticket created successfully", ticket)
@@ -802,21 +814,6 @@ const createTicket = async (req, res) => {
     }
 };
 
-// const getTickets = async (req, res) => {
-//     try {
-//         const tickets = await Ticket.find().sort({ createdAt: -1 });
-
-//         return res.status(200).json(
-//             new ApiResponse(200, "Tickets fetched successfully",   tickets )
-//         );
-
-//     } catch (error) {
-//         console.error("Error in getTickets:", error);
-//         return res.status(500).json(
-//             new ApiError(500, "Internal Server Error", [error.message])
-//         );
-//     }
-// };
 
 const getTickets = async (req, res) => {
     try {
@@ -1027,8 +1024,6 @@ const ticketDetailsSendToParties = async (req, res) => {
         const { ticketId } = req.params;
         const { optionalEmail, comment, synergyNumber } = req.body;
 
-        console.log("optionEmail , comment , synergyNumber", optionalEmail, comment, synergyNumber)
-
         const ticket = await Ticket.findById(ticketId);
         if (!ticket) {
             return res.status(404).json({ message: "Ticket not found" });
@@ -1198,49 +1193,6 @@ const getUpdatedProduct = async (req, res) => {
 };
 
 
-// const updateEngineer = async (req, res, next) => {
-//     try {
-//         const { id } = req.params;
-//         const updates = req.body;
-
-//         delete updates.role;
-
-//         if (updates.email) {
-//             const existingUser = await User.findOne({
-//                 email: updates.email,
-//                 _id: { $ne: id }
-//             });
-
-//             if (existingUser) {
-//                 return res
-//                     .status(400)
-//                     .json(new ApiError(400, "Another engineer with this email already exists"));
-//             }
-//         }
-
-//         const updatedEngineer = await User.findByIdAndUpdate(
-//             id,
-//             { $set: updates },
-//             { new: true, runValidators: true, select: "-password" }
-//         );
-
-//         if (!updatedEngineer) {
-//             return res
-//                 .status(404)
-//                 .json(new ApiError(404, "Engineer not found", [`No engineer found with id: ${id}`]));
-//         }
-
-//         return res
-//             .status(200)
-//             .json(new ApiResponse(200, "Engineer updated successfully", updatedEngineer));
-
-//     } catch (error) {
-//         return next(
-//             new ApiError(500, "Internal Server Error", [error.message], error.stack)
-//         );
-//     }
-// };
-
 const updateEngineer = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -1277,8 +1229,6 @@ const updateEngineer = async (req, res, next) => {
                 .json(new ApiError(404, "Engineer not found"));
         }
 
-        console.log("updated engineer details", updatedEngineer)
-
         return res.status(200)
             .json(new ApiResponse(200, "Engineer updated successfully", updatedEngineer));
 
@@ -1313,6 +1263,28 @@ const getEngineerById = async (req, res, next) => {
         );
     }
 };
+
+export const deleteUserByAdmin = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return next(new ApiError(404, "User not found"));
+        }
+
+        await User.findByIdAndDelete(userId);
+
+        return res.status(200).json(
+            new ApiResponse(200, "User deleted successfully")
+        );
+    } catch (error) {
+        return next(
+            new ApiError(500, "Error deleting user", [error.message])
+        );
+    }
+}
 
 const fileUpload = async (req, res) => {
     try {
@@ -1354,8 +1326,6 @@ const uploadSignature = async (req, res) => {
 
         const { fileName, fileType, fileSize } = req.body;
 
-        console.log("Received upload request =>", fileName, fileType, fileSize);
-
         if (!fileName || !fileType || !fileSize) {
             return res
                 .status(400)
@@ -1394,7 +1364,6 @@ const getSignedImageUrl = async (req, res) => {
     }
 };
 
-//for unity:
 // const getAllPurchases = async (req, res) => {
 //     try {
 //         const purchases = await Purchase.find()
@@ -1506,7 +1475,6 @@ const getAllProjectDocs = async (req, res, next) => {
             );
 
     } catch (error) {
-        console.log("Error in getProjectDocs:", error);
         return next(
             new ApiError(
                 500,
@@ -1589,7 +1557,6 @@ const getPostDocs = async (req, res, next) => {
             );
 
     } catch (error) {
-        console.log("Error in getPostDocs:", error);
         return next(
             new ApiError(
                 500,
@@ -1605,8 +1572,9 @@ const getPostDocs = async (req, res, next) => {
 const generateFormUrl = async (req, res) => {
     try {
         const { projectNumber, formName } = req.body;
-        console.log("formName", projectNumber, formName)
         const { _id: userId, firstName, lastName, signatureUrl } = req.user;
+
+        console.log("user details", req.user)
 
         const purchase = await Purchase.findOne({ projectNumber }).populate("user")
 
@@ -1617,6 +1585,8 @@ const generateFormUrl = async (req, res) => {
         const customer = purchase.user;
 
         const EngineerDetails = `${firstName} ${lastName}`;
+
+        console.log("eng details", EngineerDetails)
         const customerOrg = customer.organization
         const customerAddress = {
             address1: customer.address_1 || "",
@@ -1649,7 +1619,6 @@ const generateFormUrl = async (req, res) => {
         };
 
         const route = formRoutes[formName];
-        console.log("formName", formName)
 
         if (!route) {
             return res.status(400).json({ message: "Invalid formName" });
@@ -1719,7 +1688,6 @@ const sendFeedbackFormLink = async (req, res) => {
             process.env.FEEDBACK_TOKEN_SECRET
         );
 
-        console.log("feedbackToken", feedbackToken)
 
         const feedbackUrl =
             `${process.env.FRONTEND_URL}/feedback-form/${feedbackToken}`;
@@ -1745,8 +1713,6 @@ const markDocumentFilled = async (req, res) => {
     try {
         const { projectNumber, formName } = req.user;
 
-        console.log("projectNumber", projectNumber)
-        console.log("formName", formName)
 
         const FORM_GROUP_MAP = {
             "behavioural-observation": "preDocs",
@@ -1759,7 +1725,6 @@ const markDocumentFilled = async (req, res) => {
 
         const docsKey = FORM_GROUP_MAP[formName];
 
-        console.log("docsKey", docsKey)
 
         const result = await Purchase.updateOne(
             {
@@ -1776,7 +1741,6 @@ const markDocumentFilled = async (req, res) => {
             }
         );
 
-        console.log("result", result)
 
         if (result.modifiedCount === 0) {
             return res.status(400).json({
@@ -1976,34 +1940,41 @@ export const getFeedbackSectionGraph = async (req, res) => {
             return res.status(404).json({ message: "No feedbacks found" });
         }
 
-        const SECTION_CONFIG = {
-            beforeSales: 15,
-            execution: 20,
-            afterSales: 15,
-            quality: 10,
-        };
-
         const numberOfUsers = feedbacks.length;
 
-        const aggregated = Object.entries(SECTION_CONFIG).map(([section, maxPerUser]) => {
-            const totalScore = feedbacks.reduce(
-                (acc, f) => acc + (f[`${section}Total`] || 0),
-                0
-            );
+        const SECTION_CONFIG = {
+            beforeSales: { max: 15, label: "Before Sales" },
+            execution: { max: 20, label: "Execution" },
+            afterSales: { max: 15, label: "After Sales" },
+            quality: { max: 10, label: "Quality" },
+        };
 
-            return {
-                section,
-                label:
-                    section === "beforeSales"
-                        ? "Before Sales"
-                        : section === "execution"
-                            ? "Execution"
-                            : section === "afterSales"
-                                ? "After Sales"
-                                : "Quality",
-                totalScore,
-            };
-        });
+        const aggregated = Object.entries(SECTION_CONFIG).map(
+            ([section, config]) => {
+                // 1️⃣ Sum of scores for this section
+                const totalScore = feedbacks.reduce((sum, f) => {
+                    return sum + (f[`${section}Total`] || 0);
+                }, 0);
+
+                // 2️⃣ Average score
+                const avgScore = Number(
+                    (totalScore / numberOfUsers).toFixed(2)
+                );
+
+                // 3️⃣ Average percentage
+                const avgPercentage = Number(
+                    ((avgScore / config.max) * 100).toFixed(2)
+                );
+
+                return {
+                    section,
+                    label: config.label,
+                    maxTotal: config.max,
+                    avgScore,
+                    avgPercentage,
+                };
+            }
+        );
 
         res.json({
             numberOfUsers,
@@ -2014,6 +1985,7 @@ export const getFeedbackSectionGraph = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
 
 export const getTicketsForGraph = async (req, res) => {
     try {

@@ -18,18 +18,22 @@ import {
     deleteProductFromCustomer,
     getFeedbackSectionGraph,
     getTicketsForGraph,
+    deleteUserByAdmin,
+    deleteProduct,
 } from "../controllers/user.controller.js";
 
 
 const userRouter = Router()
 
 userRouter.route("/registerUser").post(verifyJWT, authorizeRoles("admin"), upload.single("signatureFile"), registerCustomerAndEngineer)
+userRouter.route("/deleteUser/:userId").delete(verifyJWT, authorizeRoles("admin"), deleteUserByAdmin)
 userRouter.route("/login").post(login)
 userRouter.route("/logout").post(verifyJWT, logout)
 userRouter.route("/change-password").post(verifyJWT, changeCurrentPassword)
 userRouter.route("/refresh-AccessToken").post(verifyJWT, refreshAccessToken)
 
 userRouter.route("/addNewProducts").post(verifyJWT, authorizeRoles("admin"), addNewProduct)
+userRouter.route("/deleteProduct/:productId").delete(verifyJWT, authorizeRoles("admin"), deleteProduct)
 userRouter.route("/products/:productId").patch(updateNewProduct)
 userRouter.route("/:customerId/Add-products-Tocustomer").post(verifyJWT, authorizeRoles("admin"), addProductToCustomer)
 userRouter.route("/:customerId/purchase/:purchaseId").delete(verifyJWT, authorizeRoles("admin"), deleteProductFromCustomer)

@@ -278,15 +278,14 @@ export const uploadFeedbackForm = async (req, res) => {
     };
 
     feedback.sectionPercentages = {
-      beforeSales: Math.round((req.body.beforeSalesTotal / SECTION_MAX.beforeSales) * 100),
-      execution: Math.round((req.body.executionTotal / SECTION_MAX.execution) * 100),
-      afterSales: Math.round((req.body.afterSalesTotal / SECTION_MAX.afterSales) * 100),
-      quality: Math.round((req.body.qualityTotal / SECTION_MAX.quality) * 100),
+      beforeSales: ((req.body.beforeSalesTotal / SECTION_MAX.beforeSales) * 25),
+      execution: ((req.body.executionTotal / SECTION_MAX.execution) * 25),
+      afterSales: ((req.body.afterSalesTotal / SECTION_MAX.afterSales) * 25),
+      quality: ((req.body.qualityTotal / SECTION_MAX.quality) * 25),
     };
 
     const sectionEntries = Object.entries(feedback.sectionPercentages);
 
-    // sort ascending by percentage
     sectionEntries.sort((a, b) => a[1] - b[1]);
 
     feedback.worstSection = sectionEntries[0][0];
@@ -363,8 +362,6 @@ export const DeleteFeedbackDocument = async (req, res) => {
 export const deletePreOrPostDoc = async (req, res) => {
   try {
     const { purchaseId, docId } = req.params;
-
-    console.log("Deleting doc:", { purchaseId, docId });
 
     const purchase = await Purchase.findById(purchaseId);
     if (!purchase) {

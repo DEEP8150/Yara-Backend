@@ -113,14 +113,12 @@ export const validateTempTokenMiddleware = async (req, res, next) => {
         const tempToken =
             req.headers.authorization?.split(" ")[1] || req.query.token || req.headers.token;
 
-        console.log("tempToken", tempToken)
 
         if (!tempToken)
             return res.status(401).json({ message: "Token missing" });
 
         const decoded = jwt.verify(tempToken, process.env.TEMP_TOKEN_SECRET);
 
-        console.log("decoded", decoded)
 
         const dbToken = await TempFormToken.findOne({
             token: tempToken,
@@ -187,16 +185,13 @@ export const validateFeedbackToken = async (req, res) => {
 export const validateFeedbackTokenMiddleware = async (req, res, next) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
-        console.log("token", token)
         if (!token) {
             return res.status(401).json({ message: "Token missing" });
         }
 
         const decoded = jwt.verify(token, process.env.FEEDBACK_TOKEN_SECRET);
-        console.log("decoded", decoded)
 
         const feedback = await Feedback.findOne({ tokenId: decoded.tokenId });
-        console.log("feedback", feedback)
 
         if (!feedback) {
             return res.status(400).json({ message: "Invalid token" });
@@ -211,7 +206,6 @@ export const validateFeedbackTokenMiddleware = async (req, res, next) => {
 
         next();
     } catch (err) {
-        console.log("err", err)
         return res.status(401).json({ message: "Invalid or expired token" });
     }
 };
