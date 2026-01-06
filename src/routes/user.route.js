@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
 import { validateFeedbackToken, validateFeedbackTokenMiddleware, validateTempToken, validateTempTokenMiddleware } from "../middlewares/TempFormToken.middleware.js";
 import { upload, uploadAttachDoc } from "../middlewares/multer.middleware.js";
-import { DeleteAttachDocument, DeleteFeedbackDocument, deletePreOrPostDoc, getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
+import { DeleteAttachDocument, DeleteFeedbackDocument, deletePreOrPostDoc, generatePresignedUrlForPdf, getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
 import {
     addNewProduct, addProductToCustomer, changeCurrentPassword, createTicket, getCustomerDetailsAndPurchases, getTickets,
     getTicketById, login, logout, refreshAccessToken, registerCustomerAndEngineer, updateAssignedProduct, getAllCustomers,
@@ -60,9 +60,9 @@ userRouter.route("/products/:id").get(verifyJWT, getUpdatedProduct)
 
 userRouter.route("/upload-signature").post(verifyJWT, uploadSignature)
 userRouter.route("/signature-signed-url").get(getSignedImageUrl)
-userRouter.route("/upload-pdf").post(upload.single("pdf"), uploadPdf)
+userRouter.route("/pdf-signed-url").post(generatePresignedUrlForPdf)
 userRouter.route("/pdf-url").get(getObjectPdf)
-
+userRouter.route("/upload-pdf").post(verifyJWT, uploadPdf)
 //for unity:
 userRouter.route("/unityAll-purchases").get(verifyJWT, getAllPurchases)
 userRouter.route("/docs/:projectNumber").get(verifyJWT, getAllProjectDocs)
