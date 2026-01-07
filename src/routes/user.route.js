@@ -62,7 +62,7 @@ userRouter.route("/upload-signature").post(verifyJWT, uploadSignature)
 userRouter.route("/signature-signed-url").get(getSignedImageUrl)
 userRouter.route("/pdf-signed-url").post(generatePresignedUrlForPdf)
 userRouter.route("/pdf-url").get(getObjectPdf)
-userRouter.route("/upload-pdf").post(verifyJWT, uploadPdf)
+userRouter.route("/upload-pdf").post(uploadPdf)
 userRouter.route("/feedbackForm-signed-url").post(generatePresignedUrlForFeedBackForm)
 //for unity:
 userRouter.route("/unityAll-purchases").get(verifyJWT, getAllPurchases)
