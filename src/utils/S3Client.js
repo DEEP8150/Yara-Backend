@@ -53,14 +53,16 @@ export const generatePresignedUrl = async (fileName, fileType) => {
 
 export const generatePresignedUrlForPdf = async (req, res) => {
   try {
-    const { filename, fileType } = req.body;
+    const { filename, fileType, projectNumber, formName } = req.body;
 
-    if (!filename || !fileType) {
-      return res.status(400).json({ error: 'Missing filename or fileType' });
+    if (!filename || !fileType || !projectNumber || !formName) {
+      return res.status(400).json({ error: 'Missing filename or fileType or projectNumber or formName' });
     }
 
-    const safeFilename = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const fileKey = `Documents-PDF/${Date.now()}-${safeFilename}`;
+    const safeProject = projectNumber.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const safeForm = formName.replace(/[^a-zA-Z0-9-]/g, "_");
+
+    const fileKey = `Documents-PDF/${safeProject}/${safeForm}.pdf`;
 
     const command = new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME,
@@ -81,14 +83,16 @@ export const generatePresignedUrlForPdf = async (req, res) => {
 
 export const generatePresignedUrlForFeedBackForm = async (req, res) => {
   try {
-    const { filename, fileType } = req.body;
+    const { filename, fileType, projectNumber, formName } = req.body;
 
-    if (!filename || !fileType) {
-      return res.status(400).json({ error: 'Missing filename or fileType' });
+    if (!filename || !fileType || !projectNumber || !formName) {
+      return res.status(400).json({ error: 'Missing filename or fileType or projectNumber or formName' });
     }
 
-    const safeFilename = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const fileKey = `FeedBack-Form/${Date.now()}-${safeFilename}`;
+    const safeProject = projectNumber.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const safeForm = formName.replace(/[^a-zA-Z0-9-]/g, "_");
+
+    const fileKey = `FeedBack-Form/${safeProject}/${safeForm}.pdf`;
 
     const command = new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME,
@@ -126,27 +130,7 @@ export const uploadPdf = async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const safeProject = projectNumber.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const safeForm = formName.replace(/[^a-zA-Z0-9-]/g, "_");
-
-    // const s3Key = `pdfs/${safeProject}/${safeForm}.pdf`;
-
-    // await s3Client.send(
-    //   new PutObjectCommand({
-    //     Bucket: process.env.BUCKET_NAME,
-    //     Key: s3Key,
-    //     Body: req.file.buffer,
-    //     ContentType: "application/pdf",
-    //   })
-    // );
-
-    // const fileUrl = `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${s3Key}`;
-
-    // const { uploadUrl, fileKey, fileUrl } = await generatePresignedUrlForPdf(fileName, fileType);
-
-
-
-    const purchase = await Purchase.findOne({ projectNumber: safeProject });
+    const purchase = await Purchase.findOne({ projectNumber });
 
     if (!purchase) {
       return res.status(404).json({ error: "Purchase not found" });
@@ -155,7 +139,7 @@ export const uploadPdf = async (req, res) => {
     let updated = false;
 
     const updateDoc = (docs) => {
-      const doc = docs.find(d => d.formKey === safeForm);
+      const doc = docs.find(d => d.formKey === formName);
       if (doc) {
         doc.s3PdfUrl = fileUrl;
         doc.s3Key = fileKey;
