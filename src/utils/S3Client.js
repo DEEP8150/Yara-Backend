@@ -299,23 +299,26 @@ export const uploadAttachDocument = async (req, res) => {
 
 export const uploadFeedbackForm = async (req, res) => {
   try {
-    const { tokenId, projectNumber } = req.feedbackToken;
+    // const { tokenId, projectNumber } = req.feedbackToken;
     const feedback = req.feedbackDoc;
 
-    if (!req.file) {
-      return res.status(400).json({ message: "PDF missing" });
+    const { fileUrl, fileKey } = req.body;
+
+    if (!fileUrl || !fileKey) {
+      return res.status(400).json({ message: "File URL and Key required" });
     }
 
-    const fileKey = `feedback-form/${projectNumber}/${tokenId}.pdf`;
+    // const fileKey = `feedback-form/${projectNumber}/${tokenId}.pdf`;
 
-    await s3Client.send(new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME,
-      Key: fileKey,
-      Body: req.file.buffer,
-      ContentType: req.file.mimetype
-    }));
+    // await s3Client.send(new PutObjectCommand({
+    //   Bucket: process.env.BUCKET_NAME,
+    //   Key: fileKey,
+    //   Body: req.file.buffer,
+    //   ContentType: req.file.mimetype
+    // }));
 
-    feedback.s3PdfUrl = `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${fileKey}`;
+    feedback.s3PdfUrl = fileUrl;
+    feedback.s3FileKey = fileKey;
     feedback.status = "SUBMITTED";
     feedback.submittedAt = new Date();
     feedback.totalScore = req.body.totalScore;
@@ -325,7 +328,6 @@ export const uploadFeedbackForm = async (req, res) => {
     feedback.executionTotal = req.body.executionTotal;
     feedback.afterSalesTotal = req.body.afterSalesTotal;
     feedback.qualityTotal = req.body.qualityTotal;
-
 
     const SECTION_MAX = {
       beforeSales: 15,
