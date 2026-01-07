@@ -79,6 +79,34 @@ export const generatePresignedUrlForPdf = async (req, res) => {
   }
 };
 
+export const generatePresignedUrlForFeedBackForm = async (req, res) => {
+  try {
+    const { filename, fileType } = req.body;
+
+    if (!filename || !fileType) {
+      return res.status(400).json({ error: 'Missing filename or fileType' });
+    }
+
+    const safeFilename = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const fileKey = `FeedBack-Form/${Date.now()}-${safeFilename}`;
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: fileKey,
+      ContentType: fileType,
+    });
+
+    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+
+    const fileUrl = `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${fileKey}`;
+
+    return res.json({ uploadUrl, fileKey, fileUrl });
+  } catch (error) {
+    console.error("Presigned URL error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 export const getObjectUrl = async (key) => {
   const command = new GetObjectCommand({
     Bucket: process.env.BUCKET_NAME,
@@ -93,8 +121,6 @@ export const uploadPdf = async (req, res) => {
   try {
     const { projectNumber, formName, fileKey, fileUrl } = req.body;
     const engineerId = req.user?._id || null;
-
-
 
     if (!projectNumber || !formName || !fileKey || !fileUrl) {
       return res.status(400).json({ error: 'Missing required fields' });

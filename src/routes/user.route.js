@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
 import { validateFeedbackToken, validateFeedbackTokenMiddleware, validateTempToken, validateTempTokenMiddleware } from "../middlewares/TempFormToken.middleware.js";
 import { upload, uploadAttachDoc } from "../middlewares/multer.middleware.js";
-import { DeleteAttachDocument, DeleteFeedbackDocument, deletePreOrPostDoc, generatePresignedUrlForPdf, getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
+import { DeleteAttachDocument, DeleteFeedbackDocument, deletePreOrPostDoc, generatePresignedUrlForFeedBackForm, generatePresignedUrlForPdf, getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
 import {
     addNewProduct, addProductToCustomer, changeCurrentPassword, createTicket, getCustomerDetailsAndPurchases, getTickets,
     getTicketById, login, logout, refreshAccessToken, registerCustomerAndEngineer, updateAssignedProduct, getAllCustomers,
@@ -63,6 +63,7 @@ userRouter.route("/signature-signed-url").get(getSignedImageUrl)
 userRouter.route("/pdf-signed-url").post(generatePresignedUrlForPdf)
 userRouter.route("/pdf-url").get(getObjectPdf)
 userRouter.route("/upload-pdf").post(verifyJWT, uploadPdf)
+userRouter.route("/feedbackForm-signed-url").post(generatePresignedUrlForFeedBackForm)
 //for unity:
 userRouter.route("/unityAll-purchases").get(verifyJWT, getAllPurchases)
 userRouter.route("/docs/:projectNumber").get(verifyJWT, getAllProjectDocs)
@@ -77,7 +78,7 @@ userRouter.route("/mark-document-filled").post(validateTempTokenMiddleware, mark
 userRouter.route("/project/:projectNumber/documents").get(verifyJWT, authorizeRoles("admin"), getAllDocumentsByProjectNumber);
 userRouter.route("/purchase/attachDocument").post(verifyJWT, uploadAttachDoc.single("file"), uploadAttachDocument)
 userRouter.route("/:userId/project/:projectNumber/attachDocuments").get(verifyJWT, getAllAttachDocument)
-userRouter.route("/upload-feedback-form").post(validateFeedbackTokenMiddleware, upload.single("pdf"), uploadFeedbackForm)
+userRouter.route("/upload-feedback-form").post(validateFeedbackTokenMiddleware, uploadFeedbackForm)
 userRouter.route("/delete-feedback-document/:id").delete(verifyJWT, authorizeRoles("admin"), DeleteFeedbackDocument)
 userRouter.route("/project/:projectNumber/feedbacks").get(verifyJWT, authorizeRoles("admin"), getAllFeedbacksFormsByProjectNumber);
 userRouter.route("/delete-AttachDocument/:id").delete(verifyJWT, authorizeRoles("admin"), DeleteAttachDocument)
