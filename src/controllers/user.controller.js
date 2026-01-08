@@ -1901,6 +1901,15 @@ export const getTicketsForGraph = async (req, res) => {
 };
 
 
+export const getLiveTicketCount = async (req, res) => {
+    try {
+        const count = await Ticket.countDocuments({ status: "Live" });
+        res.status(200).json({ success: true, count });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch count" });
+    }
+};
+
 
 
 
