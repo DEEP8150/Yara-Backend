@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authorizeRoles, verifyJWT } from "../middlewares/auth.middleware.js";
 import { validateFeedbackToken, validateFeedbackTokenMiddleware, validateTempToken, validateTempTokenMiddleware } from "../middlewares/TempFormToken.middleware.js";
-import { upload, uploadAttachDoc } from "../middlewares/multer.middleware.js";
+import { upload, uploadAttachDoc, uploadTicketFiles } from "../middlewares/multer.middleware.js";
 import { DeleteAttachDocument, DeleteFeedbackDocument, deletePreOrPostDoc, generatePresignedUrlForFeedBackForm, generatePresignedUrlForPdf, getObjectPdf, uploadAttachDocument, uploadFeedbackForm, uploadPdf } from "../utils/S3Client.js";
 import {
     addNewProduct, addProductToCustomer, changeCurrentPassword, createTicket, getCustomerDetailsAndPurchases, getTickets,
@@ -21,6 +21,7 @@ import {
     deleteUserByAdmin,
     deleteProduct,
     getLiveTicketCount,
+    updateAttachDocumentSelection,
 } from "../controllers/user.controller.js";
 
 
@@ -40,12 +41,14 @@ userRouter.route("/:customerId/Add-products-Tocustomer").post(verifyJWT, authori
 userRouter.route("/:customerId/purchase/:purchaseId").delete(verifyJWT, authorizeRoles("admin"), deleteProductFromCustomer)
 userRouter.route("/:userId/purchase/:purchaseId").patch(verifyJWT, authorizeRoles("admin"), updateAssignedProduct)
 userRouter.route("/:userId/purchase").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getCustomerDetailsAndPurchases)
-userRouter.route("/raiseTicket").post(verifyJWT, createTicket)
+userRouter.route("/raiseTicket").post(verifyJWT, uploadTicketFiles.fields([{ name: "images", maxCount: 3 },{ name: "video", maxCount: 1 },]),createTicket)
 userRouter.route("/getTickets").get(verifyJWT, getTickets)
 userRouter.route("/:ticketId/ticket").get(verifyJWT, authorizeRoles("admin"), getTicketById)
 userRouter.route("/all-customers").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllCustomers)
 userRouter.route("/allCommissingEngineer").get(verifyJWT, authorizeRoles("admin"), getAllEngineers)
 userRouter.route("/customer/:customerId/purchases").get(verifyJWT, getAllPurchasedProductsOfCustomer)
+userRouter.route("/attach-document/select").patch(verifyJWT, updateAttachDocumentSelection);
+
 userRouter.route("/all-products").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllProducts)
 userRouter.route("/customer/:userId").get(verifyJWT, getCustomerDetails);
 userRouter.route("/updateCustomer/:userId").patch(verifyJWT, authorizeRoles("admin"), updateCustomer);

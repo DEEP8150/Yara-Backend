@@ -82,6 +82,7 @@ export const sendTicketEmailsToParties = async (email, data) => {
       productName,
       issueDetails,
       issueType,
+      issue,
       organization,
       status,
       comment,
@@ -95,8 +96,9 @@ export const sendTicketEmailsToParties = async (email, data) => {
       <p><strong>Ticket ID:</strong> ${ticketId}</p>
       <p><strong>Organization:</strong> ${organization}</p>
       <p><strong>Project Number:</strong> ${projectNumber}</p>
-      <p><strong>Product Name:</strong> ${productName}</p>
+      <p><strong>Module Name:</strong> ${productName}</p>
       <p><strong>Issue Type:</strong> ${issueType}</p>
+      <p><strong>Issue Type:</strong> ${issue}</p>
       <p><strong>Issue Details:</strong> ${issueDetails}</p>
       <p><strong>Status:</strong> ${status}</p>
 
@@ -111,8 +113,9 @@ export const sendTicketEmailsToParties = async (email, data) => {
       Ticket ID: ${ticketId}
       Organization: ${organization}
       Project Number: ${projectNumber}
-      Product Name: ${productName}
+      Module Name: ${productName}
       Issue Type: ${issueType}
+      Issue: ${issue}
       Issue Details: ${issueDetails}
       Status: ${status}
 
@@ -294,6 +297,7 @@ export const sendTicketRaisedEmail = async (to, ticket, customer) => {
           <p><b>Project Number:</b> ${ticket.projectNumber}</p>
           <p><b>Organization:</b> ${ticket.organization}</p>
           <p><b>Issue Type:</b> ${ticket.issueType}</p>
+          <p><b>Issue:</b>${ticket.issue}</p>
           <p><b>Issue Details:</b> ${ticket.issueDetails}</p>
 
           <br/>

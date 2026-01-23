@@ -29,7 +29,9 @@ const purchaseSchema = new mongoose.Schema(
         attachDocuments: [
             {
                 url: String,
+                fileName: String,
                 uploadedAt: Date,
+                isSelected: { type: Boolean, default: false }
             }
         ],
         preDocs: {

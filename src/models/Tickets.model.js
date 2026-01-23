@@ -1,8 +1,17 @@
 import mongoose from "mongoose";
+import { TicketCounter } from "./ticketCounter.js";
 
 
 const ticketSchema = new mongoose.Schema(
     {
+        ticketNumber: {
+            type: Number,
+            unique: true,
+        },
+        formattedTicketId: {
+            type: String,
+            unique: true,
+        },
         projectNumber: {
             type: String,
             required: true,
@@ -26,6 +35,11 @@ const ticketSchema = new mongoose.Schema(
             required: true,
             trim: true,
         },
+        issue: {
+            type: String,
+            required: true,
+            trim: true,
+        },
         organization: {
             type: String,
             required: true,
@@ -35,6 +49,37 @@ const ticketSchema = new mongoose.Schema(
             type: String,
             required: true
         },
+
+        mobileNumber: {
+            type: String,
+            default: null,
+        },
+        issuedBy: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        issuedByEmail: {
+            type: String,
+            required: true,
+            trim: true,
+            lowercase: true,
+        },
+        images: {
+            type: [String],
+            validate: {
+                validator: function (arr) {
+                    return !arr || arr.length <= 3;
+                },
+                message: "Maximum 3 images allowed",
+            },
+            default: [],
+        },
+        video: {
+            type: String,
+            default: null,
+        },
+
         status: {
             type: String,
             enum: ["Live", "Resolved"],
@@ -63,5 +108,26 @@ const ticketSchema = new mongoose.Schema(
             type: Date
         },
     }, { timestamps: true })
+
+ticketSchema.pre("save", async function (next) {
+    if (!this.isNew) return next();
+
+    const counter = await TicketCounter.findOneAndUpdate(
+        { name: "ticket" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+    );
+
+    this.ticketNumber = counter.seq;
+
+    const year = new Date().getFullYear();
+    const issueType = this.issueType.replace(/\s+/g, "").toUpperCase();
+    const padded = String(counter.seq).padStart(4, "0");
+
+    this.formattedTicketId = `TKT_${year}_${issueType}_${padded}`;
+
+    next();
+});
+
 
 export const Ticket = mongoose.model("Ticket", ticketSchema)
