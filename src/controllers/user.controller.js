@@ -125,14 +125,17 @@ const registerCustomerAndEngineer = async (req, res, next) => {
 
 
 const login = async (req, res, next) => {
-
     try {
         const { email, password } = req.body
+        const platform = req.headers['x-platform'];
 
         if (!email || !password) {
             return res.status(400).json({ message: "All fields are required" })
         }
 
+        if (!platform) {
+            return res.status(400).json({ message: "Platform header is required" });
+        }
 
         const user = await User.findOne({ email })
 
@@ -144,6 +147,21 @@ const login = async (req, res, next) => {
 
         if (!isPasswordCorrect) {
             return res.status(400).json({ message: "Password is not valid" })
+        }
+
+        if (platform === 'web' && user.role !== 'admin') {
+            return res.status(403).json({
+                message: "Only admin is allowed to login on the dashboard."
+            });
+        }
+
+        if (platform === 'mobile') {
+            const appSignature = req.headers['x-app-signature'];
+            if (!appSignature || appSignature !== process.env.MOBILE_APP_SECRET) {
+                return res.status(401).json({
+                    message: "Invalid or missing app signature."
+                });
+            }
         }
 
         const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)

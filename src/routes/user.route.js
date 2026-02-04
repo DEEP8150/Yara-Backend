@@ -41,7 +41,7 @@ userRouter.route("/:customerId/Add-products-Tocustomer").post(verifyJWT, authori
 userRouter.route("/:customerId/purchase/:purchaseId").delete(verifyJWT, authorizeRoles("admin"), deleteProductFromCustomer)
 userRouter.route("/:userId/purchase/:purchaseId").patch(verifyJWT, authorizeRoles("admin"), updateAssignedProduct)
 userRouter.route("/:userId/purchase").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getCustomerDetailsAndPurchases)
-userRouter.route("/raiseTicket").post(verifyJWT, uploadTicketFiles.fields([{ name: "images", maxCount: 3 },{ name: "video", maxCount: 1 },]),createTicket)
+userRouter.route("/raiseTicket").post(verifyJWT, uploadTicketFiles.fields([{ name: "images", maxCount: 3 }, { name: "video", maxCount: 1 },]), createTicket)
 userRouter.route("/getTickets").get(verifyJWT, getTickets)
 userRouter.route("/:ticketId/ticket").get(verifyJWT, authorizeRoles("admin"), getTicketById)
 userRouter.route("/all-customers").get(verifyJWT, authorizeRoles("admin", "commissioning_engineer"), getAllCustomers)

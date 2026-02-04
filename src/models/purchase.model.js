@@ -38,6 +38,7 @@ const purchaseSchema = new mongoose.Schema(
             type: [
                 {
                     title: String,
+                    fileName: String,
                     url: String,
                     formKey: String,
                     isFilled: { type: Boolean, default: false },
@@ -78,6 +79,7 @@ const purchaseSchema = new mongoose.Schema(
             type: [
                 {
                     title: String,
+                    fileName: String,
                     url: String,
                     formKey: String,
                     isFilled: { type: Boolean, default: false },

@@ -6,7 +6,6 @@ const ticketSchema = new mongoose.Schema(
     {
         ticketNumber: {
             type: Number,
-            unique: true,
         },
         formattedTicketId: {
             type: String,
@@ -109,25 +108,28 @@ const ticketSchema = new mongoose.Schema(
         },
     }, { timestamps: true })
 
+
 ticketSchema.pre("save", async function (next) {
     if (!this.isNew) return next();
 
+    const year = new Date().getFullYear();
+    const issueType = this.issueType.replace(/\s+/g, "").toUpperCase();
+
     const counter = await TicketCounter.findOneAndUpdate(
-        { name: "ticket" },
+        { name: "ticket", year },
         { $inc: { seq: 1 } },
         { new: true, upsert: true }
     );
 
     this.ticketNumber = counter.seq;
 
-    const year = new Date().getFullYear();
-    const issueType = this.issueType.replace(/\s+/g, "").toUpperCase();
     const padded = String(counter.seq).padStart(4, "0");
 
     this.formattedTicketId = `TKT_${year}_${issueType}_${padded}`;
 
     next();
 });
+
 
 
 export const Ticket = mongoose.model("Ticket", ticketSchema)
