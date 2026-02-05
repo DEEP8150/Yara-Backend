@@ -78,7 +78,7 @@ const registerCustomerAndEngineer = async (req, res, next) => {
         const existingUser = await User.findOne({ email: userDetails.email });
         if (existingUser) {
             return res.status(400).json({
-                message: "A user with this email already exists",
+                message: "User with this email already exists",
             });
         }
 
@@ -1072,9 +1072,10 @@ const updateCustomer = async (req, res, next) => {
         if (updates.email) {
             const existingUser = await User.findOne({ email: updates.email, _id: { $ne: userId } });
             if (existingUser) {
-                return res
-                    .status(400)
-                    .json(new ApiError(400, "Another user with this email already exists"));
+                return res.status(400).json({
+                    success: false,
+                    message: "Another user with this email already exists",
+                });
             }
         }
 
@@ -1085,7 +1086,13 @@ const updateCustomer = async (req, res, next) => {
         );
 
         if (!updatedUser) {
-            return res.status(404).json({ message: "User not found" });
+            if (!updatedUser) {
+                return res.status(404).json({
+                    success: false,
+                    message: "User not found",
+                });
+            }
+
         }
 
         return res
@@ -1093,9 +1100,12 @@ const updateCustomer = async (req, res, next) => {
             .json(new ApiResponse(200, "Customer updated successfully", updatedUser));
 
     } catch (error) {
-        return next(
-            new ApiError(500, "Internal Server Error", [error.message], error.stack)
-        );
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            errors: [error.message],
+        });
+
     }
 };
 
@@ -1162,8 +1172,10 @@ const updateEngineer = async (req, res, next) => {
             });
 
             if (existing) {
-                return res.status(400)
-                    .json(new ApiError(400, "Another engineer with this email already exists"));
+                return res.status(400).json({
+                    success: false,
+                    message: "Another engineer with this email already exists",
+                });
             }
         }
 
@@ -1174,8 +1186,11 @@ const updateEngineer = async (req, res, next) => {
         );
 
         if (!updatedEngineer) {
-            return res.status(404)
-                .json(new ApiError(404, "Engineer not found"));
+            return res.status(404).json({
+                success: false,
+                message: "Engineer not found",
+            });
+
         }
 
         return res.status(200)
