@@ -716,18 +716,18 @@ const createTicket = async (req, res) => {
         await sendTicketRaisedEmail(ticket.customerEmail, ticket);
         console.log("Email sent to customer");
 
-        // const admins = await User.find(
-        //     { role: "admin" },
-        //     { email: 1 }
-        // );
+        const admins = await User.find(
+            { role: "admin" },
+            { email: 1 }
+        );
 
-        // console.log("Admins found:", admins);
+        console.log("Admins found:", admins);
 
-        // await Promise.all(
-        //     admins.map(admin =>
-        //         sendTicketRaisedEmail(admin.email, ticket)
-        //     )
-        // );
+        await Promise.all(
+            admins.map(admin =>
+                sendTicketRaisedEmail(admin.email, ticket)
+            )
+        );
         console.log("Email sent to admins");
 
         return res.status(201).json(
