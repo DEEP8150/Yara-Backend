@@ -128,6 +128,13 @@ const login = async (req, res, next) => {
     try {
         const { email, password } = req.body
         const platform = req.headers['x-platform'];
+        const appSignature = req.headers['x-app-signature'];
+
+        console.log("Login Attempt:", {
+            email,
+            platform,
+            appSignature
+        });
 
         if (!email || !password) {
             return res.status(400).json({ message: "All fields are required" })
@@ -155,14 +162,21 @@ const login = async (req, res, next) => {
             });
         }
 
+        if (platform === 'mobile' && user.role === 'admin') {
+            return res.status(403).json({
+                message: "Admin is not allowed to login on mobile."
+            });
+        }
+
         if (platform === 'mobile') {
-            const appSignature = req.headers['x-app-signature'];
             if (!appSignature || appSignature !== process.env.MOBILE_APP_SECRET) {
                 return res.status(401).json({
                     message: "Invalid or missing app signature."
                 });
             }
         }
+
+        console.log("User role:", user.role, platform);
 
         const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
 
