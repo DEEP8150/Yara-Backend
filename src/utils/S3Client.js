@@ -209,6 +209,7 @@ export const uploadAttachDocument = async (req, res) => {
         Key: fileKey,
         Body: req.file.buffer,
         ContentType: req.file.mimetype,
+        ContentDisposition: "inline",
       })
     );
 
@@ -221,7 +222,7 @@ export const uploadAttachDocument = async (req, res) => {
           attachDocuments: {
             url: fileUrl,
             uploadedAt: new Date(),
-            filename: originalName, // save the original name in DB
+            fileName: originalName,
           },
         },
       },
@@ -460,4 +461,22 @@ export const deletePreOrPostDoc = async (req, res) => {
     console.error("Delete doc error:", err);
     return res.status(500).json({ message: "Failed to delete document" });
   }
+};
+
+
+export const uploadToS3TicketFiles = async (file, projectNumber) => {
+  const timestamp = Date.now();
+  const cleanName = file.originalname.replace(/\s+/g, "_");
+  const fileKey = `Tickets-files/${projectNumber}/${cleanName}`;
+
+  const command = new PutObjectCommand({
+    Bucket: process.env.BUCKET_NAME,
+    Key: fileKey,
+    Body: file.buffer,
+    ContentType: file.mimetype,
+  });
+
+  await s3Client.send(command);
+
+  return `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${fileKey}`;
 };

@@ -10,7 +10,7 @@ import crypto from "crypto";
 import bcrypt from 'bcrypt'
 import { TempFormToken } from "../models/TempFormToken.model.js";
 import jwt from "jsonwebtoken";
-import { generatePresignedUrl, getObjectUrl } from "../utils/S3Client.js";
+import { generatePresignedUrl, getObjectUrl, uploadToS3TicketFiles } from "../utils/S3Client.js";
 import { Feedback } from "../models/feedback.model.js";
 import { randomUUID } from "crypto";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
@@ -125,14 +125,24 @@ const registerCustomerAndEngineer = async (req, res, next) => {
 
 
 const login = async (req, res, next) => {
-
     try {
         const { email, password } = req.body
+        const platform = req.headers['x-platform'];
+        const appSignature = req.headers['x-app-signature'];
+
+        console.log("Login Attempt:", {
+            email,
+            platform,
+            appSignature
+        });
 
         if (!email || !password) {
             return res.status(400).json({ message: "All fields are required" })
         }
 
+        if (!platform) {
+            return res.status(400).json({ message: "Platform header is required" });
+        }
 
         const user = await User.findOne({ email })
 
@@ -145,6 +155,28 @@ const login = async (req, res, next) => {
         if (!isPasswordCorrect) {
             return res.status(400).json({ message: "Password is not valid" })
         }
+
+        if (platform === 'web' && user.role !== 'admin') {
+            return res.status(403).json({
+                message: "Only admin is allowed to login on the dashboard."
+            });
+        }
+
+        if (platform === 'mobile' && user.role === 'admin') {
+            return res.status(403).json({
+                message: "Admin is not allowed to login on mobile."
+            });
+        }
+
+        if (platform === 'mobile') {
+            if (!appSignature || appSignature !== process.env.MOBILE_APP_SECRET) {
+                return res.status(401).json({
+                    message: "Invalid or missing app signature."
+                });
+            }
+        }
+
+        console.log("User role:", user.role, platform);
 
         const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
 
@@ -371,19 +403,19 @@ const refreshAccessToken = async (req, res, next) => {
 
 const addNewProduct = async (req, res, next) => {
     try {
-        const { productName, productDetails, isVisibleInMobile } = req.body;
+        const { productName, productDetails } = req.body;
 
         if (!productName || productName.trim() === "") {
             return res.status(400).json(
-                new ApiError(400, "Product name is required")
+                new ApiError(400, "Module name is required")
             );
         }
 
-        if (isVisibleInMobile === undefined) {
-            return res.status(400).json(
-                new ApiError(400, "Mobile visibility is required")
-            );
-        }
+        // if (isVisibleInMobile === undefined) {
+        //     return res.status(400).json(
+        //         new ApiError(400, "Mobile visibility is required")
+        //     );
+        // }
 
         const existingProduct = await Product.findOne({
             productName: productName.trim(),
@@ -391,19 +423,19 @@ const addNewProduct = async (req, res, next) => {
 
         if (existingProduct) {
             return res.status(400).json(
-                new ApiError(400, "Product already exists")
+                new ApiError(400, "Module already exists")
             );
         }
 
         const product = await Product.create({
             productName: productName.trim(),
             productDetails: productDetails?.trim(),
-            isVisibleInMobile
+            // isVisibleInMobile
         });
 
         return res
             .status(201)
-            .json(new ApiResponse(201, "Product added successfully", product));
+            .json(new ApiResponse(201, "Module added successfully", product));
 
     } catch (error) {
         return next(
@@ -604,9 +636,9 @@ const getCustomerDetailsAndPurchases = async (req, res) => {
 
 const createTicket = async (req, res) => {
     try {
-        const { productName, projectNumber, organization, issueDetails, issueType } = req.body;
+        const { productName, projectNumber, organization, issueDetails, issueType, issue, mobileNumber, issuedBy, issuedByEmail } = req.body;
 
-        if (!productName || !projectNumber || !organization || !issueDetails || !issueType) {
+        if (!productName || !projectNumber || !organization || !issueDetails || !issueType || !issue || !issuedBy || !issuedByEmail) {
             return res.status(400).json(
                 new ApiError(400, "All mandatory fields must be provided", [
                     "productName, projectNumber, organization, issueDetails, issueType are required to enter."
@@ -643,41 +675,59 @@ const createTicket = async (req, res) => {
 
         if (purchaseExists.product.productName !== productName) {
             return res.status(400).json(
-                new ApiError(400, "Product mismatch", [
-                    `Product name does not match the product linked with this projectNumber`
+                new ApiError(400, "Module mismatch", [
+                    `Module name does not match the module linked with this projectNumber`
                 ])
             );
         }
 
         const customerEmail = purchaseExists.user.email;
 
+        const images = req.files?.images || [];
+        const video = req.files?.video?.[0] || null;
+
+        const imageUrls = await Promise.all(
+            images.map((file) => uploadToS3TicketFiles(file, projectNumber))
+        );
+        console.log("Image URLs:", imageUrls);
+
+        const videoUrl = video ? await uploadToS3TicketFiles(video, projectNumber) : null;
+        console.log("Video URL:", videoUrl);
+
         const ticket = await Ticket.create({
             productName,
             projectNumber,
             organization,
             issueType,
+            issue,
             issueDetails,
             customerEmail,
             // dateTime: dateTime || Date.now(),
+            mobileNumber: mobileNumber || null,
+            issuedBy,
+            issuedByEmail,
+            images: imageUrls,
+            video: videoUrl,
             user: req.user?._id || null
         });
 
         console.log("Ticket created:", ticket);
+
         await sendTicketRaisedEmail(ticket.customerEmail, ticket);
         console.log("Email sent to customer");
 
-        const admins = await User.find(
-            { role: "admin" },
-            { email: 1 }
-        );
+        // const admins = await User.find(
+        //     { role: "admin" },
+        //     { email: 1 }
+        // );
 
-        console.log("Admins found:", admins);
+        // console.log("Admins found:", admins);
 
-        await Promise.all(
-            admins.map(admin =>
-                sendTicketRaisedEmail(admin.email, ticket)
-            )
-        );
+        // await Promise.all(
+        //     admins.map(admin =>
+        //         sendTicketRaisedEmail(admin.email, ticket)
+        //     )
+        // );
         console.log("Email sent to admins");
 
         return res.status(201).json(
@@ -817,7 +867,12 @@ const getAllPurchasedProductsOfCustomer = async (req, res, next) => {
                     path: "childrenProducts",
                     select: "productName productDetails isVisibleInMobile"
                 }
-            });
+            }).lean();
+
+        purchases.forEach(purchase => {
+            purchase.attachDocuments =
+                purchase.attachDocuments?.filter(doc => doc.isSelected === true) || [];
+        });
 
         return res
             .status(200)
@@ -829,6 +884,29 @@ const getAllPurchasedProductsOfCustomer = async (req, res, next) => {
         );
     }
 };
+
+
+const updateAttachDocumentSelection = async (req, res, next) => {
+    try {
+        const { purchaseId, documentId, isSelected } = req.body;
+
+        await Purchase.updateOne(
+            { _id: purchaseId, "attachDocuments._id": documentId },
+            {
+                $set: {
+                    "attachDocuments.$.isSelected": isSelected
+                }
+            }
+        );
+
+        res.status(200).json(
+            new ApiResponse(200, "Document selection updated")
+        );
+    } catch (err) {
+        next(new ApiError(500, "Failed to update selection", [err.message]));
+    }
+};
+
 
 const getAllProducts = async (req, res, next) => {
     try {
@@ -862,7 +940,7 @@ const updateNewProduct = async (req, res, next) => {
             if (existingProduct) {
                 return res
                     .status(400)
-                    .json(new ApiError(400, "Another product with the same name already exists", [`Product name "${productName}" is already used`]));
+                    .json(new ApiError(400, "Another product with the same name already exists", [`Module name "${productName}" is already used`]));
             }
         }
 
@@ -884,7 +962,7 @@ const updateNewProduct = async (req, res, next) => {
 
         return res
             .status(200)
-            .json(new ApiResponse(200, "Product updated successfully", updatedProduct));
+            .json(new ApiResponse(200, "Module updated successfully", updatedProduct));
 
     } catch (error) {
         return next(
@@ -1901,6 +1979,15 @@ export const getTicketsForGraph = async (req, res) => {
 };
 
 
+export const getLiveTicketCount = async (req, res) => {
+    try {
+        const count = await Ticket.countDocuments({ status: "Live" });
+        res.status(200).json({ success: true, count });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch count" });
+    }
+};
+
 
 
 
@@ -2135,5 +2222,6 @@ export {
     getAllDocumentsByProjectNumber,
     getAllAttachDocument,
     getAllFeedbacksFormsByProjectNumber,
-    deleteProductFromCustomer
+    deleteProductFromCustomer,
+    updateAttachDocumentSelection
 }
